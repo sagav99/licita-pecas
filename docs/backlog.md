@@ -10,7 +10,7 @@
 - [x] autenticação SSR por cookies e onboarding transacional de organização;
 - [x] escrever migration inicial Supabase com schema mínimo, constraints e RLS (aplicação em projeto ainda pendente);
 - [x] persistir catálogo validado no Postgres e arquivo original no Storage;
-- [x] integrar descoberta PNCP com fixture de contrato, paginação limitada e deduplicação (execução recorrente ainda pendente);
+- [x] integrar descoberta PNCP com paginação, deduplicação e execução recorrente horária;
 - [ ] configurar uma fonte complementar e política de falha/circuit breaker;
 - [x] definir chaves determinísticas de idempotência para editais, documentos e alertas;
 - [x] detectar versões de documentos e campos alterados sem apagar o histórico;

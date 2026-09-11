@@ -47,8 +47,9 @@ com `npm run pncp:collect`. Por padrão, o piloto consulta pregões eletrônicos
 pregões presenciais e dispensas do dia em horário de Brasília. O filtro inicial
 é deliberadamente amplo; a decisão de aderência continua no motor explicável.
 
-O agendamento recorrente ainda não está ativo. Não exponha o comando ou a chave
-administrativa em uma rota autenticada de cliente.
+O GitHub Actions executa coleta e matching a cada hora, com lease no banco e
+concorrência serializada. Os mesmos comandos permanecem disponíveis para
+execução manual. Não exponha a chave administrativa em uma rota de cliente.
 
 ## Limites de segurança
 
