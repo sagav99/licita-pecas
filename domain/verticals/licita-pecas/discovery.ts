@@ -1,19 +1,18 @@
 import type { NormalizedProcurement } from '../../../integrations/pncp/client.ts';
 
-const discoveryTerms = [
-  'autopec',
-  'automotiv',
-  'frota',
-  'veicul',
-  'caminh',
-  'onibus',
-  'maquina pesada',
-  'maquinas pesadas',
-  'trator',
-  'pneu',
-  'lubrificant',
-  'filtro',
-  'freio',
+const discoveryPatterns = [
+  /\bautopecas?\b/,
+  /\bautomotiv[oa]s?\b/,
+  /\bfrotas?\b/,
+  /\bveiculos?\b/,
+  /\bcaminh(?:ao|oes)\b/,
+  /\bonibus\b/,
+  /\bmaquinas? pesadas?\b/,
+  /\btratores?\b/,
+  /\bpneus?\b/,
+  /\blubrificantes?\b/,
+  /\bfiltros?\b/,
+  /\bfreios?\b/,
 ];
 
 function normalize(value: string) {
@@ -28,5 +27,5 @@ export function isLicitaPecasDiscoveryCandidate(
   procurement: Pick<NormalizedProcurement, 'object'>,
 ) {
   const object = normalize(procurement.object);
-  return discoveryTerms.some((term) => object.includes(term));
+  return discoveryPatterns.some((pattern) => pattern.test(object));
 }
