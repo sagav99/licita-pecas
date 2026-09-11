@@ -42,3 +42,21 @@ void test('document and event identities preserve idempotency', async () => {
   assert.match(sql, /dedupe_key text not null unique/);
   assert.match(sql, /unique \(organization_id, content_hash\)/);
 });
+
+void test('storage buckets stay private and enforce tenant folders', async () => {
+  const sql = await readFile(
+    new URL('../supabase/migrations/0003_storage.sql', import.meta.url),
+    'utf8',
+  );
+  assert.match(sql, /'catalog-imports',[\s\S]*false/);
+  assert.match(sql, /'procurement-documents',[\s\S]*false/);
+  assert.match(
+    sql,
+    /om\.organization_id::text = \(storage\.foldername\(name\)\)\[1\]/,
+  );
+  assert.match(sql, /owner_id = auth\.uid\(\)::text/);
+  assert.doesNotMatch(
+    sql,
+    /create policy "[^"]*procurement[^"]*"\s+on storage\.objects for insert/,
+  );
+});
