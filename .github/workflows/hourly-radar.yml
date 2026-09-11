@@ -28,8 +28,25 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Coletar oportunidades do PNCP
+        id: collect
+        continue-on-error: true
         run: npm run pncp:collect
       - name: Versionar documentos oficiais do PNCP
+        id: documents
+        continue-on-error: true
         run: npm run pncp:documents
       - name: Atualizar matches por organização
+        if: always()
         run: npm run matches:generate
+      - name: Resumir saúde das fontes
+        if: always()
+        env:
+          COLLECTION_OUTCOME: ${{ steps.collect.outcome }}
+          DOCUMENTS_OUTCOME: ${{ steps.documents.outcome }}
+        run: |
+          if [ "$COLLECTION_OUTCOME" != "success" ]; then
+            echo "::warning::Coleta PNCP degradada; backoff registrado no Supabase."
+          fi
+          if [ "$DOCUMENTS_OUTCOME" != "success" ]; then
+            echo "::warning::Ingestão de documentos degradada; matches existentes foram preservados."
+          fi
