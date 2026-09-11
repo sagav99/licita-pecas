@@ -1,0 +1,26 @@
+{
+  "numeroPagina": 1,
+  "totalPaginas": 2,
+  "paginasRestantes": 1,
+  "data": [
+    {
+      "numeroControlePNCP": "12345678000199-1-000014/2026",
+      "anoCompra": 2026,
+      "sequencialCompra": 14,
+      "objetoCompra": "Aquisição de filtros automotivos",
+      "modalidadeNome": "Pregão eletrônico",
+      "situacaoCompraNome": "Divulgada no PNCP",
+      "valorTotalEstimado": 84730,
+      "dataPublicacaoPncp": "2026-09-10T08:00:00-03:00",
+      "dataEncerramentoProposta": "2026-09-12T09:00:00-03:00",
+      "orgaoEntidade": {
+        "cnpj": "12345678000199",
+        "razaoSocial": "Prefeitura Municipal de Exemplo"
+      },
+      "unidadeOrgao": {
+        "municipioNome": "Exemplo",
+        "ufSigla": "SP"
+      }
+    }
+  ]
+}

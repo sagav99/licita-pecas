@@ -1,0 +1,37 @@
+# Backlog do produto
+
+## P0 — validação assistida
+
+- [x] experiência de radar com decisão explicável;
+- [x] leitura de CSV/XLSX e conferência de cabeçalhos;
+- [x] regra inicial de match e contrato multiempresa;
+- [x] telas de salvas, catálogo e preferências de alerta;
+- [x] decisão de stack: Vercel + Supabase + Gemini;
+- [x] escrever migration inicial Supabase com schema mínimo, constraints e RLS (aplicação em projeto ainda pendente);
+- [ ] persistir catálogo validado no Postgres e arquivo original no Storage;
+- [x] integrar descoberta PNCP com fixture de contrato, paginação limitada e deduplicação (execução recorrente ainda pendente);
+- [ ] configurar uma fonte complementar e política de falha/circuit breaker;
+- [x] definir chaves determinísticas de idempotência para editais, documentos e alertas;
+- [x] detectar versões de documentos e campos alterados sem apagar o histórico;
+- [x] expor decisão de match por vertical com motivos, bloqueios e dados ausentes;
+- [x] decidir alertas por opt-out, tipo habilitado e chave de deduplicação;
+- [x] encapsular Gemini em adapter injetável com validação de JSON/evidência;
+- [x] abstrair leitura nativa de PDF e fallback OCR sem acoplar fornecedor;
+- [x] criar repositório em memória mockável com isolamento por organização;
+- [ ] extrair PDF nativo e acionar OCR somente quando necessário;
+- [ ] integrar Gemini no servidor para estruturação assistida com JSON Schema e evidência;
+- [x] criar motor de alertas de novo edital, mudança e prazo com opt-out (entrega por e-mail ainda pendente);
+- [ ] validar com 5–10 distribuidores e medir precisão/ruído.
+
+## P1 — operação do piloto
+
+- [ ] conectar tela completa de perfil logístico, marcas e exclusões (schema pronto);
+- [ ] histórico de versões e diff de retificações;
+- [ ] conectar feedback de qualidade por match (schema e isolamento prontos);
+- [ ] observabilidade de fontes, filas e custos;
+- [ ] política de retenção, backup/restauração e resposta a incidente;
+- [ ] E2E das jornadas de importação, filtro, decisão e isolamento entre organizações.
+
+## Fora do primeiro piloto
+
+- cobrança, WhatsApp, robô de lances, parecer jurídico, todos os ERPs e lançamento simultâneo de outros verticais.
