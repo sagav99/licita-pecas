@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
+import { useRouter } from 'next/navigation';
 import readXlsxFile from 'read-excel-file';
 import {
   Bell,
@@ -51,56 +52,27 @@ import {
 } from '@/domain/catalog';
 import { createClient as createBrowserSupabaseClient } from '@/lib/supabase/client';
 
-const opportunities = [
-  {
-    id: 'PE-014/2026',
-    agency: 'Prefeitura de São José do Rio Preto',
-    title:
-      'Registro de preços para aquisição de peças para manutenção da frota municipal',
-    location: 'São José do Rio Preto · SP',
-    value: 'R$ 84.730',
-    deadline: '12 set · 09:00',
-    score: 92,
-    status: 'Compatível',
-    tags: ['Filtros', 'Freios', 'Linha diesel'],
-    reason: '18 SKUs compatíveis por código OEM e aplicação',
-    evidence:
-      'Fornecimento de filtros e componentes de freio para veículos Mercedes-Benz e Volkswagen...',
-  },
-  {
-    id: 'PR-208/2026',
-    agency: 'SAMAE de Caxias do Sul',
-    title: 'Aquisição parcelada de componentes elétricos e peças automotivas',
-    location: 'Caxias do Sul · RS',
-    value: 'R$ 126.400',
-    deadline: '13 set · 14:00',
-    score: 78,
-    status: 'Revisar',
-    tags: ['Elétrica', 'Lote misto'],
-    reason: '9 SKUs aderentes; prazo de entrega precisa de confirmação',
-    evidence:
-      'Entrega em até 48 horas após a emissão da ordem de fornecimento...',
-  },
-  {
-    id: 'CE-091/2026',
-    agency: 'Prefeitura de Sobral',
-    title: 'Contratação de oficina com fornecimento de peças e mão de obra',
-    location: 'Sobral · CE',
-    value: 'R$ 142.000',
-    deadline: '16 set · 10:30',
-    score: 34,
-    status: 'Incompatível',
-    tags: ['Serviço', 'Oficina'],
-    reason: 'Objeto exige oficina própria e mão de obra local',
-    evidence:
-      'A contratada deverá manter oficina equipada no raio máximo de 15 km...',
-  },
-];
+export type RadarOpportunity = {
+  id: string;
+  agency: string;
+  title: string;
+  location: string;
+  value: string;
+  deadline: string;
+  score: number | null;
+  status: string;
+  tags: string[];
+  reason: string;
+  evidence: string;
+  sourceUrl: string;
+  deadlineAt: string | null;
+};
 
 const tone: Record<string, string> = {
   Compatível: 'border-emerald-200 bg-emerald-50 text-emerald-800',
   Revisar: 'border-amber-200 bg-amber-50 text-amber-800',
   Incompatível: 'border-rose-200 bg-rose-50 text-rose-800',
+  'Sem dados': 'border-slate-200 bg-slate-50 text-slate-700',
 };
 
 type View = 'Radar' | 'Salvas' | 'Meu catálogo' | 'Alertas';
@@ -118,6 +90,7 @@ type RadarClientProps = {
   initialCatalogCount: number;
   initialSaved: string[];
   initialWorkflow: Record<string, string>;
+  initialOpportunities: RadarOpportunity[];
   signOutAction?: () => Promise<void>;
 };
 
@@ -347,12 +320,14 @@ export default function RadarClient({
   initialCatalogCount,
   initialSaved,
   initialWorkflow,
+  initialOpportunities: opportunities,
   signOutAction,
 }: RadarClientProps) {
   const [query, setQuery] = useState('');
+  const router = useRouter();
   const [status, setStatus] = useState('Todos');
   const [activeView, setActiveView] = useState<View>('Radar');
-  const [selectedId, setSelectedId] = useState(opportunities[0].id);
+  const [selectedId, setSelectedId] = useState(opportunities[0]?.id ?? '');
   const [saved, setSaved] = useState<string[]>(initialSaved);
   const [workflow, setWorkflow] =
     useState<Record<string, string>>(initialWorkflow);
@@ -389,7 +364,7 @@ export default function RadarClient({
         (status === 'Todos' || item.status === status)
       );
     });
-  }, [activeView, query, saved, status]);
+  }, [activeView, opportunities, query, saved, status]);
 
   const selected =
     opportunities.find((item) => item.id === selectedId) ??
@@ -571,6 +546,7 @@ export default function RadarClient({
             }
           : current,
       );
+      router.refresh();
     } catch (error) {
       setImportState((current) =>
         current
@@ -807,14 +783,27 @@ export default function RadarClient({
                 <p className="mt-2 max-w-2xl text-sm text-[#60716b] md:text-base">
                   {activeView === 'Salvas'
                     ? `${saved.length} oportunidades separadas para análise.`
-                    : 'Encontramos 12 editais aderentes ao seu catálogo, região e capacidade de entrega.'}
+                    : `${opportunities.length} oportunidades comparadas com seu catálogo.`}
                 </p>
               </div>
               <div className="grid grid-cols-3 gap-2 sm:gap-3">
                 {[
-                  ['12', 'novas'],
-                  ['4', 'prazos próximos'],
-                  ['2', 'alteradas'],
+                  [String(opportunities.length), 'encontradas'],
+                  [
+                    String(
+                      opportunities.filter(
+                        (item) => item.status === 'Compatível',
+                      ).length,
+                    ),
+                    'compatíveis',
+                  ],
+                  [
+                    String(
+                      opportunities.filter((item) => item.status === 'Revisar')
+                        .length,
+                    ),
+                    'para revisar',
+                  ],
                 ].map(([value, label]) => (
                   <div
                     key={label}
@@ -866,10 +855,10 @@ export default function RadarClient({
 
             <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
               <div className="space-y-3">
-                {filtered.map((item, index) => (
+                {filtered.map((item) => (
                   <article
                     key={item.id}
-                    className={`group rounded-2xl border bg-white p-5 transition hover:-translate-y-0.5 hover:shadow-[0_14px_38px_rgb(16_41_35/8%)] ${selected.id === item.id ? 'border-[#9fc443] shadow-[inset_4px_0_0_#b7e132]' : 'border-[#dce2de]'}`}
+                    className={`group rounded-2xl border bg-white p-5 transition hover:-translate-y-0.5 hover:shadow-[0_14px_38px_rgb(16_41_35/8%)] ${selected?.id === item.id ? 'border-[#9fc443] shadow-[inset_4px_0_0_#b7e132]' : 'border-[#dce2de]'}`}
                   >
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                       <div className="min-w-0">
@@ -895,7 +884,7 @@ export default function RadarClient({
                       <div className="flex shrink-0 items-center gap-3">
                         <div className="text-right">
                           <p className="text-2xl font-black tracking-tight">
-                            {item.score}
+                            {item.score ?? '—'}
                             <span className="text-xs font-semibold text-[#7d8d87]">
                               /100
                             </span>
@@ -965,11 +954,9 @@ export default function RadarClient({
                       </div>
                       <p className="flex items-center gap-1.5 whitespace-nowrap text-xs font-semibold text-[#9b5b08]">
                         <Clock3 className="h-4 w-4" />{' '}
-                        {index === 0
-                          ? 'Faltam 2 dias'
-                          : index === 1
-                            ? 'Faltam 3 dias'
-                            : 'Faltam 6 dias'}
+                        {item.deadlineAt
+                          ? 'Confira o prazo oficial'
+                          : 'Prazo não informado'}
                       </p>
                     </div>
                   </article>
@@ -978,81 +965,91 @@ export default function RadarClient({
                   <div className="rounded-2xl border border-dashed bg-white p-10 text-center">
                     <PackageSearch className="mx-auto h-8 w-8 text-[#789088]" />
                     <p className="mt-3 font-semibold">
-                      Nenhuma oportunidade neste filtro
+                      {opportunities.length === 0
+                        ? 'Nenhum match gerado ainda'
+                        : 'Nenhuma oportunidade neste filtro'}
                     </p>
                     <button
                       onClick={() => {
-                        setQuery('');
-                        setStatus('Todos');
+                        if (opportunities.length === 0)
+                          setActiveView('Meu catálogo');
+                        else {
+                          setQuery('');
+                          setStatus('Todos');
+                        }
                       }}
                       className="mt-2 text-sm font-semibold text-[#4c7212] underline"
                     >
-                      Limpar filtros
+                      {opportunities.length === 0
+                        ? 'Importe o catálogo e aguarde a próxima análise'
+                        : 'Limpar filtros'}
                     </button>
                   </div>
                 )}
               </div>
 
-              <aside className="h-fit rounded-2xl bg-[#102923] p-5 text-white xl:sticky xl:top-5">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-semibold">Por que apareceu?</p>
-                  <ShieldCheck className="h-5 w-5 text-[#d7ff57]" />
-                </div>
-                <p className="mt-4 text-xl font-extrabold leading-tight tracking-[-0.025em]">
-                  {selected.reason}
-                </p>
-                <div className="mt-5 space-y-3 text-sm">
-                  <div className="flex gap-3">
-                    <FileCheck2 className="mt-0.5 h-4 w-4 shrink-0 text-[#d7ff57]" />
-                    <span>
-                      <b className="block">Correspondência técnica</b>
-                      <span className="text-[#abc0b9]">
-                        OEM, marca e aplicação encontrados
-                      </span>
-                    </span>
+              {selected && (
+                <aside className="h-fit rounded-2xl bg-[#102923] p-5 text-white xl:sticky xl:top-5">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold">Por que apareceu?</p>
+                    <ShieldCheck className="h-5 w-5 text-[#d7ff57]" />
                   </div>
-                  <div className="flex gap-3">
-                    <FileCheck2 className="mt-0.5 h-4 w-4 shrink-0 text-[#d7ff57]" />
-                    <span>
-                      <b className="block">Entrega atendida</b>
-                      <span className="text-[#abc0b9]">
-                        127 km dentro do seu raio
+                  <p className="mt-4 text-xl font-extrabold leading-tight tracking-[-0.025em]">
+                    {selected.reason}
+                  </p>
+                  <div className="mt-5 space-y-3 text-sm">
+                    <div className="flex gap-3">
+                      <FileCheck2 className="mt-0.5 h-4 w-4 shrink-0 text-[#d7ff57]" />
+                      <span>
+                        <b className="block">Correspondência técnica</b>
+                        <span className="text-[#abc0b9]">
+                          OEM, marca e aplicação encontrados
+                        </span>
                       </span>
-                    </span>
+                    </div>
+                    <div className="flex gap-3">
+                      <FileCheck2 className="mt-0.5 h-4 w-4 shrink-0 text-[#d7ff57]" />
+                      <span>
+                        <b className="block">Entrega atendida</b>
+                        <span className="text-[#abc0b9]">
+                          127 km dentro do seu raio
+                        </span>
+                      </span>
+                    </div>
                   </div>
-                </div>
-                <blockquote className="mt-5 rounded-xl border border-white/10 bg-white/[0.05] p-4 text-sm leading-relaxed text-[#c9d6d2]">
-                  “{selected.evidence}”
-                </blockquote>
-                <p className="mt-3 text-xs text-[#8fa8a0]">
-                  Trecho do edital · pág. 18
-                </p>
-                <div className="mt-5 grid grid-cols-2 gap-2">
-                  {['Avaliando', 'Vai disputar', 'Não atende', 'Perdida'].map(
-                    (value) => (
-                      <button
-                        key={value}
-                        onClick={() => persistWorkflow(selected.id, value)}
-                        className={`rounded-lg border px-2 py-2 text-xs font-semibold transition ${workflow[selected.id] === value ? 'border-[#d7ff57] bg-[#d7ff57] text-[#102923]' : 'border-white/15 text-[#c9d6d2] hover:bg-white/10'}`}
-                      >
-                        {value}
-                      </button>
-                    ),
-                  )}
-                </div>
-                <a
-                  href="https://www.gov.br/pncp/pt-br"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mt-3 block rounded-lg bg-[#d7ff57] px-4 py-2.5 text-center text-sm font-bold text-[#102923] hover:bg-[#c7ef4e]"
-                >
-                  Abrir fonte oficial
-                </a>
-                <p className="mt-3 text-center text-[11px] leading-relaxed text-[#819b93]">
-                  A fonte oficial prevalece. A análise não substitui leitura
-                  jurídica.
-                </p>
-              </aside>
+                  <blockquote className="mt-5 rounded-xl border border-white/10 bg-white/[0.05] p-4 text-sm leading-relaxed text-[#c9d6d2]">
+                    “{selected.evidence}”
+                  </blockquote>
+                  <p className="mt-3 text-xs text-[#8fa8a0]">
+                    Trecho do edital · pág. 18
+                  </p>
+                  <div className="mt-5 grid grid-cols-2 gap-2">
+                    {['Avaliando', 'Vai disputar', 'Não atende', 'Perdida'].map(
+                      (value) => (
+                        <button
+                          key={value}
+                          onClick={() => persistWorkflow(selected.id, value)}
+                          className={`rounded-lg border px-2 py-2 text-xs font-semibold transition ${workflow[selected.id] === value ? 'border-[#d7ff57] bg-[#d7ff57] text-[#102923]' : 'border-white/15 text-[#c9d6d2] hover:bg-white/10'}`}
+                        >
+                          {value}
+                        </button>
+                      ),
+                    )}
+                  </div>
+                  <a
+                    href={selected.sourceUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-3 block rounded-lg bg-[#d7ff57] px-4 py-2.5 text-center text-sm font-bold text-[#102923] hover:bg-[#c7ef4e]"
+                  >
+                    Abrir fonte oficial
+                  </a>
+                  <p className="mt-3 text-center text-[11px] leading-relaxed text-[#819b93]">
+                    A fonte oficial prevalece. A análise não substitui leitura
+                    jurídica.
+                  </p>
+                </aside>
+              )}
             </div>
           </div>
         </section>

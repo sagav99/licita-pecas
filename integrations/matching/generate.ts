@@ -7,12 +7,17 @@ import {
 export async function generateLicitaPecasMatches(
   supabase: SupabaseClient,
   now = new Date(),
+  organizationIds?: string[],
 ) {
-  const { data: organizations, error: organizationError } = await supabase
+  let organizationQuery = supabase
     .from('organizations')
     .select('id')
     .eq('vertical', 'licita-pecas')
     .eq('status', 'active');
+  if (organizationIds?.length)
+    organizationQuery = organizationQuery.in('id', organizationIds);
+  const { data: organizations, error: organizationError } =
+    await organizationQuery;
   if (organizationError)
     throw new Error(`match_organizations_failed:${organizationError.code}`);
   const { data: procurements, error: procurementError } = await supabase

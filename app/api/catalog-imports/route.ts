@@ -1,6 +1,8 @@
 import { createHash } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createSupabaseAdminClient } from '@/integrations/supabase/admin';
+import { generateLicitaPecasMatches } from '@/integrations/matching/generate';
 import {
   assertCatalogFile,
   CatalogFileError,
@@ -135,6 +137,17 @@ export async function POST(request: Request) {
       .eq('organization_id', membership.organization_id);
     if (completeError) throw new Error(`complete:${completeError.message}`);
 
+    let matchingPending = false;
+    try {
+      await generateLicitaPecasMatches(
+        createSupabaseAdminClient(),
+        new Date(),
+        [membership.organization_id],
+      );
+    } catch {
+      matchingPending = true;
+    }
+
     return NextResponse.json({
       imported: items.length,
       catalogCount: await activeCatalogCount(
@@ -142,6 +155,7 @@ export async function POST(request: Request) {
         membership.organization_id,
       ),
       deduplicated: false,
+      matchingPending,
     });
   } catch (error) {
     const publicMessage =
