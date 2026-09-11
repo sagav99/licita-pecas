@@ -18,7 +18,7 @@ Fatia vertical do MVP de radar comercial para distribuidoras de autopeças. A in
 - arquitetura definida para Vercel, Supabase Auth/Postgres/Storage e Gemini API;
 - ferramenta WebMCP de filtro, quando o navegador oferecer suporte.
 
-Os editais exibidos ainda são dados demonstrativos sanitizados. Autenticação, onboarding e persistência de catálogo usam o Supabase configurado; coleta recorrente, OCR e envio real de alertas permanecem pendentes.
+O radar autenticado usa somente matches permitidos para a organização pelo Supabase. Coleta recorrente, persistência do processamento documental e envio real de alertas permanecem pendentes.
 
 ## Rodar localmente
 
