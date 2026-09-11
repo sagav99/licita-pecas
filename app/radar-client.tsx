@@ -50,11 +50,15 @@ import {
   rowsToCatalogItems,
   type CatalogImportItem,
 } from '@/domain/catalog';
-import type { AlertPreferencesInput } from '@/app/actions';
+import type {
+  AlertPreferencesInput,
+  OpportunityStateInput,
+} from '@/app/actions';
 import { createClient as createBrowserSupabaseClient } from '@/lib/supabase/client';
 
 export type RadarOpportunity = {
   id: string;
+  externalId: string;
   agency: string;
   title: string;
   location: string;
@@ -102,6 +106,9 @@ type RadarClientProps = {
   updateAlertPreferencesAction: (
     input: AlertPreferencesInput,
   ) => Promise<{ ok: boolean; error?: string }>;
+  updateOpportunityStateAction: (
+    input: OpportunityStateInput,
+  ) => Promise<{ ok: boolean; error?: string }>;
   signOutAction?: () => Promise<void>;
 };
 
@@ -133,6 +140,16 @@ export type AlertActivity = {
   sentAt: string | null;
   agency: string;
 };
+
+function workflowStatusFromLabel(
+  label: string | undefined,
+): OpportunityStateInput['workflowStatus'] {
+  if (label === 'Avaliando') return 'avaliando';
+  if (label === 'Vai disputar') return 'vai_disputar';
+  if (label === 'Não atende') return 'nao_atende';
+  if (label === 'Perdida') return 'perdida';
+  return null;
+}
 
 function CatalogView({
   count,
@@ -486,6 +503,7 @@ export default function RadarClient({
   initialWorkflow,
   initialOpportunities: opportunities,
   updateAlertPreferencesAction,
+  updateOpportunityStateAction,
   signOutAction,
 }: RadarClientProps) {
   const [query, setQuery] = useState('');
@@ -501,6 +519,8 @@ export default function RadarClient({
   const [saved, setSaved] = useState<string[]>(initialSaved);
   const [workflow, setWorkflow] =
     useState<Record<string, string>>(initialWorkflow);
+  const [opportunitiesSaving, setOpportunitiesSaving] = useState<string[]>([]);
+  const [opportunityError, setOpportunityError] = useState<string | null>(null);
   const [catalogCount, setCatalogCount] = useState(initialCatalogCount);
   const [importOpen, setImportOpen] = useState(false);
   const [importState, setImportState] = useState<{
@@ -542,6 +562,7 @@ export default function RadarClient({
         item.agency,
         item.location,
         item.id,
+        item.externalId,
         ...item.tags,
       ]
         .join(' ')
@@ -709,17 +730,76 @@ export default function RadarClient({
     }
   }
 
-  function persistSaved(procurementId: string) {
+  async function persistSaved(procurementId: string) {
     const wasSaved = saved.includes(procurementId);
+    const nextSaved = !wasSaved;
     setSaved((current) =>
       wasSaved
         ? current.filter((id) => id !== procurementId)
         : [...current, procurementId],
     );
+    setOpportunitiesSaving((current) => [...current, procurementId]);
+    setOpportunityError(null);
+    try {
+      const result = await updateOpportunityStateAction({
+        procurementId,
+        saved: nextSaved,
+        workflowStatus: workflowStatusFromLabel(workflow[procurementId]),
+      });
+      if (!result.ok) throw new Error(result.error);
+    } catch (error) {
+      setSaved((current) =>
+        wasSaved
+          ? [...new Set([...current, procurementId])]
+          : current.filter((id) => id !== procurementId),
+      );
+      setOpportunityError(
+        error instanceof Error && error.message
+          ? error.message
+          : 'Não foi possível salvar a oportunidade.',
+      );
+    } finally {
+      setOpportunitiesSaving((current) =>
+        current.filter((id) => id !== procurementId),
+      );
+    }
   }
 
-  function persistWorkflow(procurementId: string, label: string) {
-    setWorkflow((current) => ({ ...current, [procurementId]: label }));
+  async function persistWorkflow(procurementId: string, label: string) {
+    const previous = workflow[procurementId];
+    const nextLabel = previous === label ? undefined : label;
+    setWorkflow((current) => {
+      if (nextLabel) return { ...current, [procurementId]: nextLabel };
+      const next = { ...current };
+      delete next[procurementId];
+      return next;
+    });
+    setOpportunitiesSaving((current) => [...current, procurementId]);
+    setOpportunityError(null);
+    try {
+      const result = await updateOpportunityStateAction({
+        procurementId,
+        saved: saved.includes(procurementId),
+        workflowStatus: workflowStatusFromLabel(nextLabel),
+      });
+      if (!result.ok) throw new Error(result.error);
+    } catch (error) {
+      setWorkflow((current) => {
+        if (previous) return { ...current, [procurementId]: previous };
+        const next = { ...current };
+        delete next[procurementId];
+        return next;
+      });
+      setOpportunityError(
+        error instanceof Error && error.message
+          ? error.message
+          : 'Não foi possível atualizar a oportunidade.',
+      );
+    } finally {
+      setOpportunitiesSaving((current) =>
+        current.filter((id) => id !== procurementId),
+      );
+    }
   }
 
   async function confirmCatalogImport() {
@@ -1150,6 +1230,14 @@ export default function RadarClient({
 
             <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
               <div className="space-y-3">
+                {opportunityError && (
+                  <p
+                    aria-live="polite"
+                    className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800"
+                  >
+                    {opportunityError}
+                  </p>
+                )}
                 {filtered.map((item) => (
                   <article
                     key={item.id}
@@ -1165,7 +1253,7 @@ export default function RadarClient({
                             {item.status}
                           </Badge>
                           <span className="text-xs font-medium text-[#6a7d76]">
-                            {item.id}
+                            {item.externalId}
                           </span>
                           <span className="text-xs text-[#a0aaa6]">PNCP</span>
                         </div>
@@ -1191,9 +1279,10 @@ export default function RadarClient({
                         <button
                           onClick={(event) => {
                             event.stopPropagation();
-                            persistSaved(item.id);
+                            void persistSaved(item.id);
                           }}
-                          aria-label={`${saved.includes(item.id) ? 'Remover' : 'Salvar'} ${item.id}`}
+                          disabled={opportunitiesSaving.includes(item.id)}
+                          aria-label={`${saved.includes(item.id) ? 'Remover' : 'Salvar'} ${item.externalId}`}
                           className={`grid h-10 w-10 place-items-center rounded-full border transition ${saved.includes(item.id) ? 'border-[#173d34] bg-[#173d34] text-[#d7ff57]' : 'border-[#dce2de] group-hover:border-[#173d34]'}`}
                         >
                           <Star
@@ -1202,7 +1291,7 @@ export default function RadarClient({
                         </button>
                         <button
                           onClick={() => setSelectedId(item.id)}
-                          aria-label={`Abrir ${item.id}`}
+                          aria-label={`Abrir ${item.externalId}`}
                           className="grid h-10 w-10 place-items-center rounded-full border border-[#dce2de] transition group-hover:border-[#173d34] group-hover:bg-[#173d34] group-hover:text-white"
                         >
                           <ChevronRight className="h-5 w-5" />
@@ -1329,7 +1418,10 @@ export default function RadarClient({
                       (value) => (
                         <button
                           key={value}
-                          onClick={() => persistWorkflow(selected.id, value)}
+                          onClick={() =>
+                            void persistWorkflow(selected.id, value)
+                          }
+                          disabled={opportunitiesSaving.includes(selected.id)}
                           className={`rounded-lg border px-2 py-2 text-xs font-semibold transition ${workflow[selected.id] === value ? 'border-[#d7ff57] bg-[#d7ff57] text-[#102923]' : 'border-white/15 text-[#c9d6d2] hover:bg-white/10'}`}
                         >
                           {value}

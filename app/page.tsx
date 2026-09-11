@@ -6,7 +6,11 @@ import RadarClient, {
 } from '@/app/radar-client';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { signOut, updateAlertPreferences } from './actions';
+import {
+  signOut,
+  updateAlertPreferences,
+  updateOpportunityState,
+} from './actions';
 
 export default async function Home() {
   const supabase = await createClient();
@@ -28,6 +32,7 @@ export default async function Home() {
     { data: latestImport },
     { data: alertPreferences },
     { data: alertActivity },
+    { data: opportunityStates },
     { data: matches },
   ] = await Promise.all([
     supabase
@@ -69,9 +74,13 @@ export default async function Home() {
       .order('sent_at', { ascending: false, nullsFirst: false })
       .limit(5),
     supabase
+      .from('opportunity_states')
+      .select('procurement_id,saved,workflow_status')
+      .eq('organization_id', membership.organization_id),
+    supabase
       .from('matches')
       .select(
-        'status,score,reasons,evidence_quote,procurements!inner(external_id,agency,municipality,state,modality,object,total_value,deadline_at,source_url)',
+        'status,score,reasons,evidence_quote,procurements!inner(id,external_id,agency,municipality,state,modality,object,total_value,deadline_at,source_url)',
       )
       .eq('organization_id', membership.organization_id)
       .order('score', { ascending: false, nullsFirst: false })
@@ -117,6 +126,86 @@ export default async function Home() {
       ];
     },
   );
+  const rawOpportunities = (matches ?? []).flatMap(
+    (match): RadarOpportunity[] => {
+      const procurement = Array.isArray(match.procurements)
+        ? match.procurements[0]
+        : match.procurements;
+      if (!procurement) return [];
+      const reasons = Array.isArray(match.reasons)
+        ? match.reasons.filter(
+            (value): value is string => typeof value === 'string',
+          )
+        : [];
+      return [
+        {
+          id: procurement.id,
+          externalId: procurement.external_id,
+          agency: procurement.agency,
+          title: procurement.object,
+          location:
+            [procurement.municipality, procurement.state]
+              .filter(Boolean)
+              .join(' · ') || 'Local não informado',
+          state: procurement.state,
+          value:
+            procurement.total_value === null
+              ? 'Não informado'
+              : new Intl.NumberFormat('pt-BR', {
+                  style: 'currency',
+                  currency: 'BRL',
+                  maximumFractionDigits: 0,
+                }).format(procurement.total_value),
+          totalValue: procurement.total_value,
+          deadline: procurement.deadline_at
+            ? new Intl.DateTimeFormat('pt-BR', {
+                timeZone: 'America/Sao_Paulo',
+                day: '2-digit',
+                month: 'short',
+                hour: '2-digit',
+                minute: '2-digit',
+              }).format(new Date(procurement.deadline_at))
+            : 'Não informado',
+          deadlineAt: procurement.deadline_at,
+          score: match.score,
+          status:
+            match.status === 'compatível'
+              ? 'Compatível'
+              : match.status === 'incompatível'
+                ? 'Incompatível'
+                : match.status === 'sem dados suficientes'
+                  ? 'Sem dados'
+                  : 'Revisar',
+          tags: [procurement.modality, procurement.state].filter(
+            (value): value is string => Boolean(value),
+          ),
+          reason: reasons[0] ?? 'Dados preliminares; confira o edital oficial.',
+          evidence: match.evidence_quote ?? procurement.object,
+          sourceUrl: procurement.source_url,
+        },
+      ];
+    },
+  );
+  const opportunities = [
+    ...new Map(rawOpportunities.map((item) => [item.id, item])).values(),
+  ];
+  const workflowLabels: Record<string, string> = {
+    avaliando: 'Avaliando',
+    vai_disputar: 'Vai disputar',
+    nao_atende: 'Não atende',
+    perdida: 'Perdida',
+  };
+  const initialSaved = (opportunityStates ?? [])
+    .filter((state) => state.saved)
+    .map((state) => state.procurement_id);
+  const initialWorkflow = Object.fromEntries(
+    (opportunityStates ?? []).flatMap((state) => {
+      const label = state.workflow_status
+        ? workflowLabels[state.workflow_status]
+        : undefined;
+      return label ? [[state.procurement_id, label]] : [];
+    }),
+  );
 
   return (
     <RadarClient
@@ -142,68 +231,10 @@ export default async function Home() {
       initialAlertPreferences={initialAlertPreferences}
       initialAlertActivity={initialAlertActivity}
       updateAlertPreferencesAction={updateAlertPreferences}
-      initialSaved={[]}
-      initialWorkflow={{}}
-      initialOpportunities={(matches ?? []).flatMap(
-        (match): RadarOpportunity[] => {
-          const procurement = Array.isArray(match.procurements)
-            ? match.procurements[0]
-            : match.procurements;
-          if (!procurement) return [];
-          const reasons = Array.isArray(match.reasons)
-            ? match.reasons.filter(
-                (value): value is string => typeof value === 'string',
-              )
-            : [];
-          return [
-            {
-              id: procurement.external_id,
-              agency: procurement.agency,
-              title: procurement.object,
-              location:
-                [procurement.municipality, procurement.state]
-                  .filter(Boolean)
-                  .join(' · ') || 'Local não informado',
-              state: procurement.state,
-              value:
-                procurement.total_value === null
-                  ? 'Não informado'
-                  : new Intl.NumberFormat('pt-BR', {
-                      style: 'currency',
-                      currency: 'BRL',
-                      maximumFractionDigits: 0,
-                    }).format(procurement.total_value),
-              totalValue: procurement.total_value,
-              deadline: procurement.deadline_at
-                ? new Intl.DateTimeFormat('pt-BR', {
-                    timeZone: 'America/Sao_Paulo',
-                    day: '2-digit',
-                    month: 'short',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  }).format(new Date(procurement.deadline_at))
-                : 'Não informado',
-              deadlineAt: procurement.deadline_at,
-              score: match.score,
-              status:
-                match.status === 'compatível'
-                  ? 'Compatível'
-                  : match.status === 'incompatível'
-                    ? 'Incompatível'
-                    : match.status === 'sem dados suficientes'
-                      ? 'Sem dados'
-                      : 'Revisar',
-              tags: [procurement.modality, procurement.state].filter(
-                (value): value is string => Boolean(value),
-              ),
-              reason:
-                reasons[0] ?? 'Dados preliminares; confira o edital oficial.',
-              evidence: match.evidence_quote ?? procurement.object,
-              sourceUrl: procurement.source_url,
-            },
-          ];
-        },
-      )}
+      updateOpportunityStateAction={updateOpportunityState}
+      initialSaved={initialSaved}
+      initialWorkflow={initialWorkflow}
+      initialOpportunities={opportunities}
       signOutAction={signOut}
     />
   );

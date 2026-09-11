@@ -139,3 +139,23 @@ void test('item snapshots preserve removed records and restrict replacement', as
   assert.match(sql, /insert into public\.source_events/);
   assert.match(sql, /auth\.role\(\) <> 'service_role'/);
 });
+
+void test('human opportunity state is isolated and cannot target an unrelated procurement', async () => {
+  const sql = await readFile(
+    new URL(
+      '../supabase/migrations/0010_opportunity_states.sql',
+      import.meta.url,
+    ),
+    'utf8',
+  );
+  assert.match(
+    sql,
+    /alter table public\.opportunity_states enable row level security/,
+  );
+  assert.match(sql, /primary key \(organization_id, procurement_id\)/);
+  assert.match(sql, /public\.is_org_member\(organization_id\)/);
+  assert.match(sql, /m\.organization_id = opportunity_states\.organization_id/);
+  assert.match(sql, /m\.procurement_id = opportunity_states\.procurement_id/);
+  assert.match(sql, /updated_by = auth\.uid\(\)/);
+  assert.match(sql, /check \(saved or workflow_status is not null\)/);
+});

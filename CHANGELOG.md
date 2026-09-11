@@ -14,6 +14,7 @@
 - Processamento assíncrono e limitado de PDFs com texto nativo/OCR, estrutura Gemini e preservação de progresso entre falhas.
 - Matching enriquecido por OEM, marca, aplicação e trecho verificado dos documentos processados.
 - Snapshots estruturados de itens do PNCP, com hash, inativação auditável e uso direto pelo matcher.
+- Estado comercial persistente e isolado por organização para oportunidades salvas e etapas de avaliação.
 
 - Chaves determinísticas para impedir duplicidade de editais, versões de documentos e alertas.
 - Contrato de ingestão para comparar hashes, emitir eventos de alteração e preservar versões.
