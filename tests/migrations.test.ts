@@ -83,3 +83,17 @@ void test('catalog import can only be advanced inside the current organization',
   assert.match(sql, /created_by = auth\.uid\(\)/);
   assert.match(sql, /reference_price numeric[\s\S]+reference_price >= 0/);
 });
+
+void test('source collector lease is restricted to service role', async () => {
+  const sql = await readFile(
+    new URL(
+      '../supabase/migrations/0006_source_collection.sql',
+      import.meta.url,
+    ),
+    'utf8',
+  );
+  assert.match(sql, /auth\.role\(\) <> 'service_role'/);
+  assert.match(sql, /lease_until is null or lease_until <= now\(\)/);
+  assert.match(sql, /revoke all on function[\s\S]+from authenticated/);
+  assert.match(sql, /grant execute on function[\s\S]+to service_role/);
+});

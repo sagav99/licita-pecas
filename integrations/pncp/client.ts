@@ -105,6 +105,14 @@ function number(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
+function timestamp(value: unknown): string | null {
+  const raw = text(value);
+  if (!raw) return null;
+  const withZone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(raw) ? raw : `${raw}-03:00`;
+  const parsed = new Date(withZone);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+}
+
 export function parsePncpPage(payload: unknown): PncpPage {
   if (!payload || typeof payload !== 'object')
     throw new Error('invalid_payload');
@@ -135,9 +143,9 @@ export function parsePncpPage(payload: unknown): PncpPage {
         modality: text(item.modalidadeNome),
         status: text(item.situacaoCompraNome) ?? 'não informado',
         object,
-        publishedAt: text(item.dataPublicacaoPncp),
-        sessionAt: text(item.dataAberturaProposta),
-        deadlineAt: text(item.dataEncerramentoProposta),
+        publishedAt: timestamp(item.dataPublicacaoPncp),
+        sessionAt: timestamp(item.dataAberturaProposta),
+        deadlineAt: timestamp(item.dataEncerramentoProposta),
         totalValue: number(item.valorTotalEstimado),
         sourceUrl: officialUrl,
       },
@@ -183,6 +191,7 @@ export async function collectPncpPages(
   options: {
     fetchPage?: (search: PncpSearch) => Promise<PncpPage>;
     maxPages?: number;
+    baseUrl?: string;
   } = {},
 ): Promise<PncpCollection> {
   const maxPages = options.maxPages ?? 20;
@@ -190,7 +199,8 @@ export async function collectPncpPages(
     throw new Error('invalid_max_pages');
 
   const fetchPage =
-    options.fetchPage ?? ((pageSearch) => fetchPncpPage(pageSearch));
+    options.fetchPage ??
+    ((pageSearch) => fetchPncpPage(pageSearch, { baseUrl: options.baseUrl }));
   const firstPage = search.page ?? 1;
   let requestedPage = firstPage;
   let totalPages = firstPage;

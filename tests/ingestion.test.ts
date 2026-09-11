@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  buildProcurementChangeEvent,
   buildSourceEvent,
   changedProcurementFields,
   compareDocumentHash,
@@ -43,5 +44,18 @@ void test('reports only fields that changed between procurement snapshots', () =
       deadlineAt: '2026-09-13T09:00:00-03:00',
     }),
     ['deadlineAt'],
+  );
+});
+
+void test('creates a deterministic event for a changed procurement deadline', async () => {
+  const event = await buildProcurementChangeEvent('proc-1', snapshot, {
+    ...snapshot,
+    deadlineAt: '2026-09-13T09:00:00-03:00',
+  });
+  assert.equal(event?.type, 'procurement_changed');
+  assert.deepEqual(event?.changedFields, ['deadlineAt']);
+  assert.match(
+    event?.dedupeKey ?? '',
+    /^procurement-change:proc-1:[a-f0-9]{64}$/,
   );
 });

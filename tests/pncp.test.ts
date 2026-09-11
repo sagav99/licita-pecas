@@ -48,6 +48,7 @@ void test('normalizes PNCP data and drops records without required proof fields'
   });
   assert.equal(result.records.length, 1);
   assert.equal(result.records[0].state, 'SP');
+  assert.equal(result.records[0].publishedAt, '2026-09-10T11:00:00.000Z');
   assert.equal(
     result.records[0].sourceUrl,
     'https://pncp.gov.br/app/editais/12345678000199/2026/14',
