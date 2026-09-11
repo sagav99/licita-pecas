@@ -24,4 +24,11 @@ void test('drops an unrelated notice before consuming storage and AI quota', () 
     }),
     false,
   );
+  assert.equal(
+    isLicitaPecasDiscoveryCandidate({
+      object:
+        'Jornal regional para veiculação de publicações, atos oficiais e editais',
+    }),
+    false,
+  );
 });
