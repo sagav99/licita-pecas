@@ -23,6 +23,7 @@
 - [x] extrair PDF nativo e acionar OCR somente quando necessário;
 - [x] processar fila limitada com Gemini, persistindo texto antes da estruturação, evidência e falha segura;
 - [x] incorporar OEM, marca, aplicação e evidência documental ao match resumido;
+- [x] coletar itens oficiais do PNCP e incorporar códigos, descrição, quantidade e unidade ao motor;
 - [x] criar motor de alertas de novo edital, mudança e prazo com opt-out (entrega por e-mail ainda pendente);
 - [ ] validar com 5–10 distribuidores e medir precisão/ruído.
 

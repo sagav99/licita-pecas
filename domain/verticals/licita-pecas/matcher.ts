@@ -31,6 +31,7 @@ export type MatchProcurement = {
   deadlineAt: string | null;
   sourceUrl: string;
   extraction?: MatchExtraction | null;
+  items?: Array<{ description: string; codes: string[] }>;
 };
 
 export type PreliminaryMatch = MatchDecision & {
@@ -87,18 +88,24 @@ function technicalScore(procurement: MatchProcurement, item: MatchCatalogItem) {
   const technicalText = [
     procurement.object,
     ...(extraction?.evidence.map((evidence) => evidence.quote) ?? []),
+    ...(procurement.items ?? []).flatMap((item) => [
+      item.description,
+      ...item.codes,
+    ]),
   ].join(' ');
   const normalizedObject = normalize(technicalText);
   const codes = [item.oem, item.manufacturerCode].filter(
     (value): value is string => Boolean(value?.trim()),
   );
   const extractedCodes = new Set(
-    (extraction?.oemCodes ?? [])
-      .filter((code) =>
+    [
+      ...(extraction?.oemCodes ?? []).filter((code) =>
         extraction?.evidence.some((evidence) =>
           normalizeCode(evidence.quote).includes(normalizeCode(code)),
         ),
-      )
+      ),
+      ...(procurement.items ?? []).flatMap((item) => item.codes),
+    ]
       .map(normalizeCode)
       .filter(Boolean),
   );
@@ -108,7 +115,7 @@ function technicalScore(procurement: MatchProcurement, item: MatchCatalogItem) {
   if (exactCode)
     return {
       score: 100,
-      reason: `Código ${exactCode} do SKU ${item.sku} foi identificado no edital`,
+      reason: `Código ${exactCode} do SKU ${item.sku} foi identificado nos dados oficiais`,
       proofTerm: exactCode,
     };
   if (codes.some((code) => normalizedObject.includes(normalize(code))))
@@ -204,17 +211,30 @@ export function matchLicitaPecas(input: {
         normalizeCode(evidence.quote).includes(normalizeCode(proofTerm)),
       )
     : procurement.extraction?.evidence[0];
+  const officialItem = proofTerm
+    ? procurement.items?.find((item) =>
+        normalizeCode([item.description, ...item.codes].join(' ')).includes(
+          normalizeCode(proofTerm),
+        ),
+      )
+    : procurement.items?.[0];
   const evidence = documentEvidence
     ? {
         quote: documentEvidence.quote,
         sourceUrl: documentEvidence.sourceUrl,
         field: 'document',
       }
-    : {
-        quote: procurement.object,
-        sourceUrl: procurement.sourceUrl,
-        field: 'object',
-      };
+    : officialItem
+      ? {
+          quote: officialItem.description,
+          sourceUrl: procurement.sourceUrl,
+          field: 'item',
+        }
+      : {
+          quote: procurement.object,
+          sourceUrl: procurement.sourceUrl,
+          field: 'object',
+        };
   return {
     ...decision,
     procurementId: procurement.id,

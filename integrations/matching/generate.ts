@@ -93,6 +93,42 @@ export async function generateLicitaPecasMatches(
         : extraction,
     );
   }
+  const lots = [] as Array<{ id: string; procurement_id: string }>;
+  for (let index = 0; index < procurementIds.length; index += 200) {
+    const { data, error } = await supabase
+      .from('lots')
+      .select('id,procurement_id')
+      .in('procurement_id', procurementIds.slice(index, index + 200))
+      .eq('external_id', 'pncp-items');
+    if (error) throw new Error(`match_lots_failed:${error.code}`);
+    lots.push(...(data ?? []));
+  }
+  const procurementByLot = new Map(
+    lots.map((lot) => [lot.id, lot.procurement_id]),
+  );
+  const itemsByProcurement = new Map<
+    string,
+    Array<{ description: string; codes: string[] }>
+  >();
+  const lotIds = lots.map((lot) => lot.id);
+  for (let index = 0; index < lotIds.length; index += 200) {
+    const { data, error } = await supabase
+      .from('procurement_items')
+      .select('lot_id,description,codes')
+      .in('lot_id', lotIds.slice(index, index + 200))
+      .eq('active', true);
+    if (error) throw new Error(`match_items_failed:${error.code}`);
+    for (const item of data ?? []) {
+      const procurementId = procurementByLot.get(item.lot_id);
+      if (!procurementId || typeof item.description !== 'string') continue;
+      const codes = Array.isArray(item.codes)
+        ? item.codes.filter((code): code is string => typeof code === 'string')
+        : [];
+      const current = itemsByProcurement.get(procurementId) ?? [];
+      current.push({ description: item.description, codes });
+      itemsByProcurement.set(procurementId, current);
+    }
+  }
   let generated = 0;
   for (const organization of organizations ?? []) {
     const [
@@ -137,6 +173,7 @@ export async function generateLicitaPecasMatches(
           deadlineAt: procurement.deadline_at,
           sourceUrl: procurement.source_url,
           extraction: extractionByProcurement.get(procurement.id) ?? null,
+          items: itemsByProcurement.get(procurement.id) ?? [],
         },
         catalog: normalizedCatalog,
         regions: profile?.regions ?? [],

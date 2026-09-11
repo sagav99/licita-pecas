@@ -123,3 +123,19 @@ void test('document registration is atomic and restricted to service role', asyn
   assert.match(sql, /grant execute on function[\s\S]+to service_role/);
   assert.match(sql, /documents_checked_at/);
 });
+
+void test('item snapshots preserve removed records and restrict replacement', async () => {
+  const sql = await readFile(
+    new URL(
+      '../supabase/migrations/0009_procurement_items_ingestion.sql',
+      import.meta.url,
+    ),
+    'utf8',
+  );
+  assert.match(sql, /replace_procurement_items/);
+  assert.match(sql, /set active = false/);
+  assert.match(sql, /on conflict \(lot_id, external_id\) do update/);
+  assert.match(sql, /items_hash/);
+  assert.match(sql, /insert into public\.source_events/);
+  assert.match(sql, /auth\.role\(\) <> 'service_role'/);
+});

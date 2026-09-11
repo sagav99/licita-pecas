@@ -11,6 +11,7 @@ Fatia vertical do MVP de radar comercial para distribuidoras de autopeças. A in
 - geração preliminar idempotente de matches por catálogo, região, valor e prazo;
 - coleta PNCP paginada, limitada e deduplicada, com persistência em lotes, lease e saúde da fonte;
 - coleta limitada de editais e termos de referência do PNCP, com PDF privado, hash, versões imutáveis e eventos de mudança;
+- snapshots estruturados de itens do PNCP, com descrição, códigos, quantidade, unidade e histórico lógico;
 - ingestão idempotente, versionamento de documentos e eventos de mudança;
 - planejador de alertas com opt-out, prazo, retificação e link oficial;
 - pipeline server-side de PDF com texto nativo, OCR Gemini somente como fallback e estruturação com evidência;
@@ -57,6 +58,10 @@ O mesmo workflow verifica um lote pequeno de documentos oficiais com
 downloads têm limite de tamanho e são identificados por SHA-256 antes de serem
 armazenados no bucket privado. Alterações criam uma nova linha e preservam a
 versão anterior.
+
+Os itens oficiais são coletados separadamente com `npm run pncp:items`, sem uso
+de IA. O snapshot é identificado por hash; itens retirados da fonte ficam
+inativos para auditoria e códigos/descrições alimentam diretamente o match.
 
 `npm run documents:process` lê uma fila pequena de versões pendentes. O texto é
 salvo antes da estruturação por Gemini; por isso, falha ou limite de cota não
