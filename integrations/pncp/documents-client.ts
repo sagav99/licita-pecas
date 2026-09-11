@@ -139,13 +139,16 @@ export function prioritizePncpDocuments(
     .slice(0, limit);
 }
 
-type RequestOptions = {
+export type PncpRequestOptions = {
   fetcher?: typeof fetch;
   sleep?: (delayMs: number) => Promise<void>;
   attempts?: number;
 };
 
-async function request(url: URL | string, options: RequestOptions) {
+export async function requestPncp(
+  url: URL | string,
+  options: PncpRequestOptions,
+) {
   const fetcher = options.fetcher ?? fetch;
   const sleep =
     options.sleep ??
@@ -175,9 +178,9 @@ async function request(url: URL | string, options: RequestOptions) {
 
 export async function fetchPncpDocuments(
   coordinates: PncpProcurementCoordinates,
-  options: RequestOptions & { baseUrl?: string } = {},
+  options: PncpRequestOptions & { baseUrl?: string } = {},
 ) {
-  const response = await request(
+  const response = await requestPncp(
     buildPncpDocumentsUrl(coordinates, options.baseUrl),
     options,
   );
@@ -214,11 +217,11 @@ async function readBoundedBody(response: Response) {
 
 export async function downloadPncpPdf(
   documentUrl: string,
-  options: RequestOptions = {},
+  options: PncpRequestOptions = {},
 ) {
   const safeUrl = pncpUrl(documentUrl);
   if (!safeUrl) throw new Error('pncp_document_url_missing');
-  const bytes = await readBoundedBody(await request(safeUrl, options));
+  const bytes = await readBoundedBody(await requestPncp(safeUrl, options));
   assertPdf(bytes);
   return bytes;
 }

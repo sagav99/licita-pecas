@@ -80,10 +80,32 @@ void test('uses verified document OEM and preserves its official evidence', () =
     now: new Date('2026-09-11T12:00:00Z'),
   });
   assert.equal(result.status, 'compatível');
-  assert.match(result.reasons[0], /ABC-123.*identificado no edital/);
+  assert.match(result.reasons[0], /ABC-123.*identificado nos dados oficiais/);
   assert.equal(result.evidence[0]?.field, 'document');
   assert.equal(
     result.evidence[0]?.sourceUrl,
     'https://pncp.gov.br/pncp-api/edital.pdf',
   );
+});
+
+void test('uses a structured PNCP item as technical evidence', () => {
+  const result = matchLicitaPecas({
+    procurement: {
+      ...procurement,
+      object: 'Aquisição de peças para frota',
+      items: [
+        {
+          description: 'Filtro de óleo para caminhão',
+          codes: ['ABC123'],
+        },
+      ],
+    },
+    catalog,
+    regions: ['SP'],
+    now: new Date('2026-09-11T12:00:00Z'),
+  });
+  assert.equal(result.status, 'compatível');
+  assert.equal(result.evidence[0]?.field, 'item');
+  assert.equal(result.evidence[0]?.quote, 'Filtro de óleo para caminhão');
+  assert.equal(result.evidence[0]?.sourceUrl, procurement.sourceUrl);
 });
