@@ -31,8 +31,31 @@ export function createGeminiExtractionAdapter(
       } catch {
         throw new Error('gemini_invalid_json');
       }
+      if (!parsed || !Array.isArray(parsed.evidence))
+        throw new Error('gemini_invalid_response');
       if (!hasUsableEvidence(parsed))
         throw new Error('gemini_missing_evidence');
+      const normalizedText = input.text.replace(/\s+/g, ' ').toLowerCase();
+      const verifiedEvidence = parsed.evidence.filter((evidence) => {
+        if (
+          !evidence ||
+          typeof evidence.quote !== 'string' ||
+          typeof evidence.sourceUrl !== 'string'
+        )
+          return false;
+        const normalizedQuote = evidence.quote
+          .replace(/\s+/g, ' ')
+          .trim()
+          .toLowerCase();
+        return (
+          evidence.sourceUrl === input.sourceUrl &&
+          normalizedQuote.length >= 8 &&
+          normalizedText.includes(normalizedQuote)
+        );
+      });
+      if (!verifiedEvidence.length)
+        throw new Error('gemini_unverified_evidence');
+      parsed.evidence = verifiedEvidence;
       return parsed;
     },
   };

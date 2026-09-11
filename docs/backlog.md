@@ -21,7 +21,7 @@
 - [x] abstrair leitura nativa de PDF e fallback OCR sem acoplar fornecedor;
 - [x] criar repositório em memória mockável com isolamento por organização;
 - [x] extrair PDF nativo e acionar OCR somente quando necessário;
-- [x] integrar Gemini no servidor para estruturação assistida com JSON Schema e evidência (execução/persistência assíncrona ainda pendente);
+- [x] processar fila limitada com Gemini, persistindo texto antes da estruturação, evidência e falha segura;
 - [x] criar motor de alertas de novo edital, mudança e prazo com opt-out (entrega por e-mail ainda pendente);
 - [ ] validar com 5–10 distribuidores e medir precisão/ruído.
 

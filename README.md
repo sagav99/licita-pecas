@@ -19,7 +19,7 @@ Fatia vertical do MVP de radar comercial para distribuidoras de autopeças. A in
 - arquitetura definida para Vercel, Supabase Auth/Postgres/Storage e Gemini API;
 - ferramenta WebMCP de filtro, quando o navegador oferecer suporte.
 
-O radar autenticado usa somente matches permitidos para a organização pelo Supabase. A estruturação dos PDFs persistidos, a fonte complementar e o envio real de alertas permanecem pendentes.
+O radar autenticado usa somente matches permitidos para a organização pelo Supabase. A fonte complementar, o uso dos campos extraídos no match detalhado e o envio real de alertas permanecem pendentes.
 
 ## Rodar localmente
 
@@ -57,6 +57,11 @@ O mesmo workflow verifica um lote pequeno de documentos oficiais com
 downloads têm limite de tamanho e são identificados por SHA-256 antes de serem
 armazenados no bucket privado. Alterações criam uma nova linha e preservam a
 versão anterior.
+
+`npm run documents:process` lê uma fila pequena de versões pendentes. O texto é
+salvo antes da estruturação por Gemini; por isso, falha ou limite de cota não
+obriga novo OCR. O workflow usa um documento por passagem e encerra novas
+tentativas depois de três falhas, preservando o PDF, o texto e o erro seguro.
 
 ## Limites de segurança
 
