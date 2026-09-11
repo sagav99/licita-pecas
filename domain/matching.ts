@@ -9,6 +9,7 @@ export type MatchSignals = {
   deadline: number;
   requirements: number;
   hardBlock?: string;
+  enoughData?: boolean;
   missing?: string[];
   positiveReasons?: string[];
 };
@@ -39,7 +40,7 @@ export function evaluateMatch(
     deadline: clamp(signals.deadline),
     requirements: clamp(signals.requirements),
     hardBlock: Boolean(signals.hardBlock),
-    enoughData: missing.length === 0,
+    enoughData: signals.enoughData ?? missing.length === 0,
   });
   if (result.status === 'sem dados suficientes' && missing.length === 0)
     missing.push(...verticalLabels[vertical].slice(0, 2));

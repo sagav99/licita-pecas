@@ -8,6 +8,7 @@ Fatia vertical do MVP de radar comercial para distribuidoras de autopeças. A in
 - seleção, salvamento e triagem de oportunidades em uma experiência navegável;
 - importação de CSV/XLSX com conferência, revalidação no servidor, arquivo privado no Storage e upsert no Postgres;
 - regra de match pura e testada, incluindo bloqueio operacional e ausência de dados;
+- geração preliminar idempotente de matches por catálogo, região, valor e prazo;
 - coleta PNCP paginada, limitada e deduplicada, com persistência em lotes, lease e saúde da fonte;
 - ingestão idempotente, versionamento de documentos e eventos de mudança;
 - planejador de alertas com opt-out, prazo, retificação e link oficial;

@@ -97,3 +97,13 @@ void test('source collector lease is restricted to service role', async () => {
   assert.match(sql, /revoke all on function[\s\S]+from authenticated/);
   assert.match(sql, /grant execute on function[\s\S]+to service_role/);
 });
+
+void test('summary matches have a stable idempotency key', async () => {
+  const sql = await readFile(
+    new URL('../supabase/migrations/0007_match_identity.sql', import.meta.url),
+    'utf8',
+  );
+  assert.match(sql, /match_key text/);
+  assert.match(sql, /unique index[\s\S]+matches \(match_key\)/);
+  assert.match(sql, /missing_data jsonb/);
+});
