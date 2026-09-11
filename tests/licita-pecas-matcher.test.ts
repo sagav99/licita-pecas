@@ -55,3 +55,35 @@ void test('does not claim compatibility without a customer catalog', () => {
   assert.equal(result.status, 'sem dados suficientes');
   assert.equal(result.catalogItemId, null);
 });
+
+void test('uses verified document OEM and preserves its official evidence', () => {
+  const result = matchLicitaPecas({
+    procurement: {
+      ...procurement,
+      object: 'Aquisição de peças para frota',
+      extraction: {
+        brands: [],
+        oemCodes: ['ABC123'],
+        applications: ['Caminhão'],
+        deliveryRequirements: ['Entrega em 10 dias'],
+        evidence: [
+          {
+            quote: 'Filtro de óleo com código OEM ABC123 para caminhão',
+            page: 12,
+            sourceUrl: 'https://pncp.gov.br/pncp-api/edital.pdf',
+          },
+        ],
+      },
+    },
+    catalog,
+    regions: ['SP'],
+    now: new Date('2026-09-11T12:00:00Z'),
+  });
+  assert.equal(result.status, 'compatível');
+  assert.match(result.reasons[0], /ABC-123.*identificado no edital/);
+  assert.equal(result.evidence[0]?.field, 'document');
+  assert.equal(
+    result.evidence[0]?.sourceUrl,
+    'https://pncp.gov.br/pncp-api/edital.pdf',
+  );
+});

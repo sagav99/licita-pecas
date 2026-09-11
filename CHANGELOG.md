@@ -12,6 +12,7 @@
 - Autenticação Supabase SSR, renovação por cookies, login/cadastro e onboarding transacional de organizações.
 - Ingestão limitada de documentos oficiais do PNCP com validação de host/PDF/tamanho, Storage privado, hash e evento transacional de versão.
 - Processamento assíncrono e limitado de PDFs com texto nativo/OCR, estrutura Gemini e preservação de progresso entre falhas.
+- Matching enriquecido por OEM, marca, aplicação e trecho verificado dos documentos processados.
 
 - Chaves determinísticas para impedir duplicidade de editais, versões de documentos e alertas.
 - Contrato de ingestão para comparar hashes, emitir eventos de alteração e preservar versões.
