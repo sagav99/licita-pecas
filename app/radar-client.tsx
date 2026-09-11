@@ -50,6 +50,7 @@ import {
   rowsToCatalogItems,
   type CatalogImportItem,
 } from '@/domain/catalog';
+import type { AlertPreferencesInput } from '@/app/actions';
 import { createClient as createBrowserSupabaseClient } from '@/lib/supabase/client';
 
 export type RadarOpportunity = {
@@ -57,7 +58,9 @@ export type RadarOpportunity = {
   agency: string;
   title: string;
   location: string;
+  state: string | null;
   value: string;
+  totalValue: number | null;
   deadline: string;
   score: number | null;
   status: string;
@@ -86,35 +89,79 @@ const navItems: Array<[LucideIcon, View]> = [
 
 type RadarClientProps = {
   displayName: string;
+  email: string;
   organizationName: string;
   initialCatalogCount: number;
+  initialCatalogItems: CatalogPreviewItem[];
+  initialCatalogMetrics: CatalogMetrics;
+  initialAlertPreferences: AlertPreferences;
+  initialAlertActivity: AlertActivity[];
   initialSaved: string[];
   initialWorkflow: Record<string, string>;
   initialOpportunities: RadarOpportunity[];
+  updateAlertPreferencesAction: (
+    input: AlertPreferencesInput,
+  ) => Promise<{ ok: boolean; error?: string }>;
   signOutAction?: () => Promise<void>;
 };
 
-const catalogPreview = [
-  ['FIL-001', 'Filtro de óleo diesel', 'OC-121', 'MANN-FILTER', '24', '2 dias'],
-  [
-    'PST-884',
-    'Pastilha de freio dianteira',
-    'OEM-884',
-    'Fras-le',
-    '12',
-    '3 dias',
-  ],
-  ['AMP-220', 'Amortecedor dianteiro', 'COFAP-220', 'Cofap', '8', '4 dias'],
-  ['COR-518', 'Correia dentada', 'CT-518', 'Continental', '31', '2 dias'],
-];
+export type CatalogPreviewItem = {
+  sku: string;
+  description: string;
+  code: string | null;
+  brand: string | null;
+  stock: number | null;
+  leadTimeDays: number | null;
+};
+
+export type CatalogMetrics = {
+  analyzedCount: number;
+  withCodeCount: number;
+  missingApplicationCount: number;
+  averageLeadTimeDays: number | null;
+  lastImportAt: string | null;
+};
+
+export type AlertPreferences = {
+  emailEnabled: boolean;
+  enabledTypes: string[];
+};
+
+export type AlertActivity = {
+  id: string;
+  type: string;
+  sentAt: string | null;
+  agency: string;
+};
 
 function CatalogView({
   count,
+  items,
+  metrics,
   onImport,
 }: {
   count: number;
+  items: CatalogPreviewItem[];
+  metrics: CatalogMetrics;
   onImport: () => void;
 }) {
+  const withCodePercent = metrics.analyzedCount
+    ? Math.round((metrics.withCodeCount / metrics.analyzedCount) * 100)
+    : 0;
+  const qualityPercent = metrics.analyzedCount
+    ? Math.round(
+        ((metrics.analyzedCount - metrics.missingApplicationCount) /
+          metrics.analyzedCount) *
+          100,
+      )
+    : 0;
+  const lastImport = metrics.lastImportAt
+    ? new Intl.DateTimeFormat('pt-BR', {
+        timeZone: 'America/Sao_Paulo',
+        dateStyle: 'short',
+        timeStyle: 'short',
+      }).format(new Date(metrics.lastImportAt))
+    : 'Nenhuma importação concluída';
   return (
     <div className="px-5 py-7 md:px-8 md:py-8">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
@@ -137,8 +184,14 @@ function CatalogView({
       <div className="mt-7 grid gap-4 md:grid-cols-3">
         {[
           [count.toLocaleString('pt-BR'), 'produtos ativos', PackageSearch],
-          ['87%', 'com código OEM', FileCheck2],
-          ['2,8 dias', 'prazo médio', Clock3],
+          [`${withCodePercent}%`, 'com código técnico', FileCheck2],
+          [
+            metrics.averageLeadTimeDays === null
+              ? '—'
+              : `${metrics.averageLeadTimeDays.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} dias`,
+            'prazo médio informado',
+            Clock3,
+          ],
         ].map(([value, label, Icon]) => (
           <div key={String(label)} className="rounded-2xl border bg-white p-5">
             <Icon className="h-5 w-5 text-[#5b841b]" />
@@ -155,7 +208,7 @@ function CatalogView({
           <div>
             <h2 className="font-bold">Amostra do catálogo</h2>
             <p className="text-xs text-[#687a74]">
-              Última conferência hoje, 08:42
+              Última importação: {lastImport}
             </p>
           </div>
           <Badge variant="outline">Catálogo comercial</Badge>
@@ -177,23 +230,40 @@ function CatalogView({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {catalogPreview.map((row) => (
-                <TableRow key={row[0]}>
-                  {row.map((cell, index) => (
-                    <TableCell
-                      key={`${row[0]}-${cell}`}
-                      className={
-                        index === 0 ? 'font-mono text-xs font-semibold' : ''
-                      }
-                    >
-                      {cell}
-                    </TableCell>
-                  ))}
+              {items.map((item) => (
+                <TableRow key={item.sku}>
+                  <TableCell className="font-mono text-xs font-semibold">
+                    {item.sku}
+                  </TableCell>
+                  <TableCell>{item.description}</TableCell>
+                  <TableCell>{item.code ?? 'Não informado'}</TableCell>
+                  <TableCell>{item.brand ?? 'Não informada'}</TableCell>
+                  <TableCell>
+                    {item.stock === null
+                      ? 'Não informado'
+                      : item.stock.toLocaleString('pt-BR')}
+                  </TableCell>
+                  <TableCell>
+                    {item.leadTimeDays === null
+                      ? 'Não informado'
+                      : `${item.leadTimeDays} dias`}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </div>
+        {!items.length && (
+          <div className="border-t px-5 py-10 text-center">
+            <p className="font-semibold">Seu catálogo ainda está vazio</p>
+            <p className="mt-1 text-sm text-[#687a74]">
+              Importe um CSV ou XLSX para iniciar a comparação técnica.
+            </p>
+            <Button onClick={onImport} className="mt-4 gap-2">
+              <Upload className="h-4 w-4" /> Importar catálogo
+            </Button>
+          </div>
+        )}
       </section>
 
       <section className="mt-5 rounded-2xl border bg-white p-5">
@@ -204,37 +274,93 @@ function CatalogView({
               Campos que aumentam a precisão do match.
             </p>
           </div>
-          <span className="text-lg font-extrabold">82%</span>
+          <span className="text-lg font-extrabold">{qualityPercent}%</span>
         </div>
-        <Progress value={82} className="mt-4" />
-        <p className="mt-3 flex items-center gap-2 text-sm text-amber-800">
-          <TriangleAlert className="h-4 w-4" /> 164 produtos ainda não possuem
-          aplicação por veículo.
-        </p>
+        <Progress value={qualityPercent} className="mt-4" />
+        {metrics.missingApplicationCount > 0 ? (
+          <p className="mt-3 flex items-center gap-2 text-sm text-amber-800">
+            <TriangleAlert className="h-4 w-4" />{' '}
+            {metrics.missingApplicationCount.toLocaleString('pt-BR')} produtos
+            ainda não possuem aplicação por veículo.
+          </p>
+        ) : (
+          <p className="mt-3 text-sm text-emerald-800">
+            {count
+              ? 'Todos os produtos informam aplicação.'
+              : 'A qualidade será calculada após a primeira importação.'}
+          </p>
+        )}
       </section>
     </div>
   );
 }
 
-function AlertsView() {
+function AlertsView({
+  email,
+  initialPreferences,
+  activity,
+  updatePreferences,
+}: {
+  email: string;
+  initialPreferences: AlertPreferences;
+  activity: AlertActivity[];
+  updatePreferences: (
+    input: AlertPreferencesInput,
+  ) => Promise<{ ok: boolean; error?: string }>;
+}) {
+  const [preferences, setPreferences] = useState(initialPreferences);
+  const [saving, setSaving] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const alertOptions = [
     [
+      'new_match',
       'Novo edital compatível',
       'Assim que uma oportunidade atingir seu perfil',
-      true,
     ],
     [
+      'procurement_changed',
       'Alteração em edital salvo',
       'Retificações, anexos e mudança de sessão',
-      true,
     ],
-    ['Prazo próximo', 'Lembrete 48 horas antes do encerramento', true],
     [
+      'deadline_near',
+      'Prazo próximo',
+      'Lembrete 48 horas antes do encerramento',
+    ],
+    [
+      'item_reclassified',
       'Itens reclassificados',
       'Quando novos dados mudarem o resultado do match',
-      false,
     ],
   ] as const;
+
+  async function persistPreferences(next: AlertPreferences, key: string) {
+    setSaving(key);
+    setError(null);
+    try {
+      const result = await updatePreferences(next);
+      if (!result.ok) {
+        setError(result.error ?? 'Não foi possível salvar a preferência.');
+        return;
+      }
+      setPreferences(next);
+    } catch {
+      setError('Não foi possível salvar a preferência. Tente novamente.');
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  function activityLabel(type: string) {
+    return (
+      {
+        new_match: 'Novo match',
+        procurement_changed: 'Edital alterado',
+        deadline_near: 'Prazo próximo',
+        item_reclassified: 'Item reclassificado',
+      }[type] ?? type
+    );
+  }
   return (
     <div className="px-5 py-7 md:px-8 md:py-8">
       <p className="text-xs font-bold uppercase tracking-[0.12em] text-[#527066]">
@@ -249,29 +375,62 @@ function AlertsView() {
 
       <div className="mt-7 grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
         <section className="rounded-2xl border bg-white p-5">
-          <div className="flex items-center gap-3 border-b pb-4">
-            <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#edf2ef]">
-              <Mail className="h-5 w-5 text-[#315d50]" />
+          <div className="flex items-center justify-between gap-4 border-b pb-4">
+            <div className="flex items-center gap-3">
+              <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#edf2ef]">
+                <Mail className="h-5 w-5 text-[#315d50]" />
+              </div>
+              <div>
+                <h2 className="font-bold">E-mail</h2>
+                <p className="text-sm text-[#687a74]">{email}</p>
+              </div>
             </div>
-            <div>
-              <h2 className="font-bold">E-mail</h2>
-              <p className="text-sm text-[#687a74]">marina@autonorte.com.br</p>
-            </div>
+            <Switch
+              checked={preferences.emailEnabled}
+              disabled={saving !== null}
+              onCheckedChange={(checked) =>
+                void persistPreferences(
+                  { ...preferences, emailEnabled: checked },
+                  'email',
+                )
+              }
+              aria-label="Ativar alertas por e-mail"
+            />
           </div>
           <div className="divide-y">
-            {alertOptions.map(([title, description, enabled]) => (
+            {alertOptions.map(([type, title, description]) => (
               <div
-                key={title}
+                key={type}
                 className="flex items-center justify-between gap-4 py-4"
               >
                 <div>
                   <p className="font-semibold">{title}</p>
                   <p className="mt-1 text-sm text-[#687a74]">{description}</p>
                 </div>
-                <Switch defaultChecked={enabled} aria-label={title} />
+                <Switch
+                  checked={preferences.enabledTypes.includes(type)}
+                  disabled={!preferences.emailEnabled || saving !== null}
+                  onCheckedChange={(checked) => {
+                    const enabledTypes = checked
+                      ? [...new Set([...preferences.enabledTypes, type])]
+                      : preferences.enabledTypes.filter(
+                          (enabledType) => enabledType !== type,
+                        );
+                    void persistPreferences(
+                      { ...preferences, enabledTypes },
+                      type,
+                    );
+                  }}
+                  aria-label={title}
+                />
               </div>
             ))}
           </div>
+          {error && (
+            <p aria-live="polite" className="mt-2 text-sm text-rose-700">
+              {error}
+            </p>
+          )}
           <div className="mt-2 rounded-xl bg-[#f4f6f3] p-4 text-sm text-[#52665f]">
             Todo e-mail inclui link para a fonte oficial e opção de descadastro.
           </div>
@@ -283,30 +442,30 @@ function AlertsView() {
             <RefreshCw className="h-4 w-4 text-[#d7ff57]" />
           </div>
           <div className="mt-5 space-y-5">
-            {[
-              [
-                'Hoje, 08:04',
-                'Novo match 92/100',
-                'Prefeitura de São José do Rio Preto',
-              ],
-              ['Ontem, 16:20', 'Prazo alterado', 'SAMAE de Caxias do Sul'],
-              [
-                'Ontem, 09:12',
-                '3 itens reclassificados',
-                'Prefeitura de Franca',
-              ],
-            ].map(([time, title, detail]) => (
-              <div
-                key={`${time}-${title}`}
-                className="border-l border-[#536b64] pl-4"
-              >
-                <p className="text-xs text-[#8fa8a0]">{time}</p>
-                <p className="mt-1 text-sm font-semibold">{title}</p>
+            {activity.map((item) => (
+              <div key={item.id} className="border-l border-[#536b64] pl-4">
+                <p className="text-xs text-[#8fa8a0]">
+                  {item.sentAt
+                    ? new Intl.DateTimeFormat('pt-BR', {
+                        timeZone: 'America/Sao_Paulo',
+                        dateStyle: 'short',
+                        timeStyle: 'short',
+                      }).format(new Date(item.sentAt))
+                    : 'Pendente de envio'}
+                </p>
+                <p className="mt-1 text-sm font-semibold">
+                  {activityLabel(item.type)}
+                </p>
                 <p className="mt-1 text-xs leading-relaxed text-[#abc0b9]">
-                  {detail}
+                  {item.agency}
                 </p>
               </div>
             ))}
+            {!activity.length && (
+              <div className="rounded-xl border border-white/10 p-4 text-sm text-[#abc0b9]">
+                Nenhum alerta foi registrado ainda.
+              </div>
+            )}
           </div>
         </aside>
       </div>
@@ -316,16 +475,27 @@ function AlertsView() {
 
 export default function RadarClient({
   displayName,
+  email,
   organizationName,
   initialCatalogCount,
+  initialCatalogItems,
+  initialCatalogMetrics,
+  initialAlertPreferences,
+  initialAlertActivity,
   initialSaved,
   initialWorkflow,
   initialOpportunities: opportunities,
+  updateAlertPreferencesAction,
   signOutAction,
 }: RadarClientProps) {
   const [query, setQuery] = useState('');
   const router = useRouter();
   const [status, setStatus] = useState('Todos');
+  const [ufFilter, setUfFilter] = useState('Todas');
+  const [valueFilter, setValueFilter] = useState('Todos');
+  const [deadlineFilter, setDeadlineFilter] = useState('Todos');
+  const [scoreFilter, setScoreFilter] = useState('Todos');
+  const [filterReferenceTime] = useState(() => Date.now());
   const [activeView, setActiveView] = useState<View>('Radar');
   const [selectedId, setSelectedId] = useState(opportunities[0]?.id ?? '');
   const [saved, setSaved] = useState<string[]>(initialSaved);
@@ -343,6 +513,26 @@ export default function RadarClient({
     deduplicated?: boolean;
     error?: string;
   } | null>(null);
+  const catalogQuality = initialCatalogMetrics.analyzedCount
+    ? Math.round(
+        ((initialCatalogMetrics.analyzedCount -
+          initialCatalogMetrics.missingApplicationCount) /
+          initialCatalogMetrics.analyzedCount) *
+          100,
+      )
+    : 0;
+  const catalogUpdatedAt = initialCatalogMetrics.lastImportAt
+    ? new Intl.DateTimeFormat('pt-BR', {
+        timeZone: 'America/Sao_Paulo',
+        dateStyle: 'short',
+      }).format(new Date(initialCatalogMetrics.lastImportAt))
+    : 'não importado';
+  const initials = displayName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('');
 
   const filtered = useMemo(() => {
     const normalized = query.toLocaleLowerCase('pt-BR');
@@ -358,18 +548,63 @@ export default function RadarClient({
         .toLocaleLowerCase('pt-BR')
         .includes(normalized);
       const matchesView = activeView !== 'Salvas' || saved.includes(item.id);
+      const matchesUf = ufFilter === 'Todas' || item.state === ufFilter;
+      const matchesValue =
+        valueFilter === 'Todos' ||
+        (item.totalValue !== null &&
+          ((valueFilter === 'Até R$ 150 mil' && item.totalValue <= 150_000) ||
+            (valueFilter === 'R$ 150–500 mil' &&
+              item.totalValue > 150_000 &&
+              item.totalValue <= 500_000) ||
+            (valueFilter === 'Acima de R$ 500 mil' &&
+              item.totalValue > 500_000)));
+      const deadlineDays = Number(deadlineFilter);
+      const deadlineTime = item.deadlineAt
+        ? new Date(item.deadlineAt).getTime()
+        : Number.NaN;
+      const matchesDeadline =
+        deadlineFilter === 'Todos' ||
+        (Number.isFinite(deadlineTime) &&
+          deadlineTime >= filterReferenceTime &&
+          deadlineTime <= filterReferenceTime + deadlineDays * 86_400_000);
+      const minimumScore = Number(scoreFilter);
+      const matchesScore =
+        scoreFilter === 'Todos' ||
+        (item.score !== null && item.score >= minimumScore);
       return (
         matchesQuery &&
         matchesView &&
+        matchesUf &&
+        matchesValue &&
+        matchesDeadline &&
+        matchesScore &&
         (status === 'Todos' || item.status === status)
       );
     });
-  }, [activeView, opportunities, query, saved, status]);
+  }, [
+    activeView,
+    deadlineFilter,
+    filterReferenceTime,
+    opportunities,
+    query,
+    saved,
+    scoreFilter,
+    status,
+    ufFilter,
+    valueFilter,
+  ]);
 
   const selected =
-    opportunities.find((item) => item.id === selectedId) ??
-    filtered[0] ??
-    opportunities[0];
+    filtered.find((item) => item.id === selectedId) ?? filtered[0];
+  const availableStates = useMemo(
+    () =>
+      [
+        ...new Set(
+          opportunities.flatMap((item) => (item.state ? [item.state] : [])),
+        ),
+      ].sort(),
+    [opportunities],
+  );
 
   useEffect(() => {
     const context = (
@@ -595,16 +830,21 @@ export default function RadarClient({
           <div className="mt-auto rounded-xl border border-white/10 bg-white/[0.04] p-4">
             <div className="mb-2 flex items-center justify-between">
               <span className="text-xs text-[#9db4ad]">Catálogo ativo</span>
-              <span className="text-xs font-bold text-[#d7ff57]">82%</span>
+              <span className="text-xs font-bold text-[#d7ff57]">
+                {catalogQuality}%
+              </span>
             </div>
             <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
-              <div className="h-full w-[82%] rounded-full bg-[#d7ff57]" />
+              <div
+                className="h-full rounded-full bg-[#d7ff57]"
+                style={{ width: `${catalogQuality}%` }}
+              />
             </div>
             <p className="mt-3 text-sm font-semibold">
               {catalogCount.toLocaleString('pt-BR')} produtos
             </p>
             <p className="mt-1 text-xs leading-relaxed text-[#9db4ad]">
-              Atualizado hoje, 08:42
+              Atualizado: {catalogUpdatedAt}
             </p>
           </div>
         </aside>
@@ -753,7 +993,7 @@ export default function RadarClient({
                 <Settings2 className="h-5 w-5" />
               </Button>
               <div className="grid h-9 w-9 place-items-center rounded-full bg-[#173d34] text-sm font-bold text-white">
-                MN
+                {initials || 'LP'}
               </div>
             </div>
           </header>
@@ -761,10 +1001,19 @@ export default function RadarClient({
           {activeView === 'Meu catálogo' && (
             <CatalogView
               count={catalogCount}
+              items={initialCatalogItems}
+              metrics={initialCatalogMetrics}
               onImport={() => setImportOpen(true)}
             />
           )}
-          {activeView === 'Alertas' && <AlertsView />}
+          {activeView === 'Alertas' && (
+            <AlertsView
+              email={email}
+              initialPreferences={initialAlertPreferences}
+              activity={initialAlertActivity}
+              updatePreferences={updateAlertPreferencesAction}
+            />
+          )}
 
           <div
             className={`${activeView === 'Meu catálogo' || activeView === 'Alertas' ? 'hidden' : ''} px-5 py-7 md:px-8 md:py-8`}
@@ -832,24 +1081,70 @@ export default function RadarClient({
                 />
               </label>
               <div className="flex gap-2 overflow-x-auto">
-                <button className="whitespace-nowrap rounded-xl border border-[#dce2de] bg-white px-4 py-3 text-sm font-medium">
-                  SP + 2 UFs
-                </button>
+                <select
+                  aria-label="Filtrar por estado"
+                  value={ufFilter}
+                  onChange={(event) => setUfFilter(event.target.value)}
+                  className="rounded-xl border border-[#dce2de] bg-white px-4 py-3 text-sm font-medium"
+                >
+                  <option value="Todas">Todas as UFs</option>
+                  {availableStates.map((state) => (
+                    <option key={state}>{state}</option>
+                  ))}
+                </select>
                 <select
                   aria-label="Filtrar por status"
                   value={status}
                   onChange={(event) => setStatus(event.target.value)}
                   className="rounded-xl border border-[#dce2de] bg-white px-4 py-3 text-sm font-medium"
                 >
-                  {['Todos', 'Compatível', 'Revisar', 'Incompatível'].map(
-                    (value) => (
-                      <option key={value}>{value}</option>
-                    ),
-                  )}
+                  {[
+                    'Todos',
+                    'Compatível',
+                    'Revisar',
+                    'Incompatível',
+                    'Sem dados',
+                  ].map((value) => (
+                    <option key={value}>{value}</option>
+                  ))}
                 </select>
-                <button className="whitespace-nowrap rounded-xl border border-[#dce2de] bg-white px-4 py-3 text-sm font-medium">
-                  R$ 5 mil – 150 mil
-                </button>
+                <select
+                  aria-label="Filtrar por valor"
+                  value={valueFilter}
+                  onChange={(event) => setValueFilter(event.target.value)}
+                  className="rounded-xl border border-[#dce2de] bg-white px-4 py-3 text-sm font-medium"
+                >
+                  {[
+                    'Todos',
+                    'Até R$ 150 mil',
+                    'R$ 150–500 mil',
+                    'Acima de R$ 500 mil',
+                  ].map((value) => (
+                    <option key={value}>{value}</option>
+                  ))}
+                </select>
+                <select
+                  aria-label="Filtrar por prazo"
+                  value={deadlineFilter}
+                  onChange={(event) => setDeadlineFilter(event.target.value)}
+                  className="rounded-xl border border-[#dce2de] bg-white px-4 py-3 text-sm font-medium"
+                >
+                  <option value="Todos">Todos os prazos</option>
+                  <option value="7">Próximos 7 dias</option>
+                  <option value="15">Próximos 15 dias</option>
+                  <option value="30">Próximos 30 dias</option>
+                </select>
+                <select
+                  aria-label="Filtrar por score"
+                  value={scoreFilter}
+                  onChange={(event) => setScoreFilter(event.target.value)}
+                  className="rounded-xl border border-[#dce2de] bg-white px-4 py-3 text-sm font-medium"
+                >
+                  <option value="Todos">Todos os scores</option>
+                  <option value="80">Score 80+</option>
+                  <option value="60">Score 60+</option>
+                  <option value="40">Score 40+</option>
+                </select>
               </div>
             </div>
 
@@ -976,6 +1271,10 @@ export default function RadarClient({
                         else {
                           setQuery('');
                           setStatus('Todos');
+                          setUfFilter('Todas');
+                          setValueFilter('Todos');
+                          setDeadlineFilter('Todos');
+                          setScoreFilter('Todos');
                         }
                       }}
                       className="mt-2 text-sm font-semibold text-[#4c7212] underline"
@@ -1001,18 +1300,20 @@ export default function RadarClient({
                     <div className="flex gap-3">
                       <FileCheck2 className="mt-0.5 h-4 w-4 shrink-0 text-[#d7ff57]" />
                       <span>
-                        <b className="block">Correspondência técnica</b>
+                        <b className="block">Sinais considerados</b>
                         <span className="text-[#abc0b9]">
-                          OEM, marca e aplicação encontrados
+                          {selected.tags.length
+                            ? selected.tags.join(' · ')
+                            : 'Nenhum sinal adicional informado'}
                         </span>
                       </span>
                     </div>
                     <div className="flex gap-3">
                       <FileCheck2 className="mt-0.5 h-4 w-4 shrink-0 text-[#d7ff57]" />
                       <span>
-                        <b className="block">Entrega atendida</b>
+                        <b className="block">Evidência disponível</b>
                         <span className="text-[#abc0b9]">
-                          127 km dentro do seu raio
+                          Confira o trecho abaixo e valide na fonte oficial
                         </span>
                       </span>
                     </div>
@@ -1021,7 +1322,7 @@ export default function RadarClient({
                     “{selected.evidence}”
                   </blockquote>
                   <p className="mt-3 text-xs text-[#8fa8a0]">
-                    Trecho do edital · pág. 18
+                    Trecho preservado pelo processamento do edital
                   </p>
                   <div className="mt-5 grid grid-cols-2 gap-2">
                     {['Avaliando', 'Vai disputar', 'Não atende', 'Perdida'].map(

@@ -6,6 +6,7 @@
 - [x] leitura de CSV/XLSX e conferência de cabeçalhos;
 - [x] regra inicial de match e contrato multiempresa;
 - [x] telas de salvas, catálogo e preferências de alerta;
+- [x] substituir dados demonstrativos de catálogo e alertas por consultas isoladas da organização;
 - [x] decisão de stack: Vercel + Supabase + Gemini;
 - [x] autenticação SSR por cookies e onboarding transacional de organização;
 - [x] escrever migration inicial Supabase com schema mínimo, constraints e RLS (aplicação em projeto ainda pendente);

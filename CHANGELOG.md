@@ -30,3 +30,4 @@
 ### Changed
 
 - Stack de execução definida como Next.js/Vercel; a preparação anterior para Cloudflare/D1/R2 foi removida.
+- Catálogo e alertas deixaram de apresentar exemplos fixos: agora usam dados da organização, estados vazios honestos e preferências persistidas pela sessão autenticada; o radar ganhou filtros reais de UF, valor, prazo e score.

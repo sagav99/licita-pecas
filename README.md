@@ -17,10 +17,11 @@ Fatia vertical do MVP de radar comercial para distribuidoras de autopeças. A in
 - pipeline server-side de PDF com texto nativo, OCR Gemini somente como fallback e estruturação com evidência;
 - migrations Supabase com núcleo operacional e RLS multiempresa;
 - navegação entre radar, oportunidades salvas, catálogo e alertas;
+- catálogo, métricas, preferências e atividade de alertas exibidos a partir dos dados isolados da organização;
 - arquitetura definida para Vercel, Supabase Auth/Postgres/Storage e Gemini API;
 - ferramenta WebMCP de filtro, quando o navegador oferecer suporte.
 
-O radar autenticado usa somente matches permitidos para a organização pelo Supabase. A fonte complementar, o uso dos campos extraídos no match detalhado e o envio real de alertas permanecem pendentes.
+O radar autenticado usa somente dados permitidos para a organização pelo Supabase. A fonte complementar e o envio real de alertas permanecem pendentes.
 
 ## Rodar localmente
 
