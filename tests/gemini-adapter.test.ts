@@ -35,10 +35,25 @@ void test('keeps Gemini behind an injectable client and validates evidence', asy
   });
   const result = await adapter.extract({
     sourceUrl: 'https://example.com/edital.pdf',
-    text: 'texto',
+    text: 'O documento contém: Aquisição de filtros automotivos.',
   });
   assert.equal(result.object, 'Filtros');
   assert.equal(calls.length, 1);
+});
+
+void test('rejects evidence that is absent from the official document', async () => {
+  const adapter = createGeminiExtractionAdapter({
+    async generate() {
+      return JSON.stringify(extraction);
+    },
+  });
+  await assert.rejects(
+    adapter.extract({
+      sourceUrl: 'https://example.com/edital.pdf',
+      text: 'Este texto não contém o trecho alegado.',
+    }),
+    /gemini_unverified_evidence/,
+  );
 });
 
 void test('rejects malformed model output without evidence', async () => {

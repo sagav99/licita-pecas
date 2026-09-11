@@ -17,6 +17,7 @@
     "gemini:check": "node --env-file-if-exists=.env.local --experimental-strip-types scripts/check-gemini.ts",
     "pncp:collect": "node --env-file-if-exists=.env.local --experimental-strip-types scripts/collect-pncp.ts",
     "pncp:documents": "node --env-file-if-exists=.env.local --experimental-strip-types scripts/collect-pncp-documents.ts",
+    "documents:process": "node --env-file-if-exists=.env.local --experimental-strip-types scripts/process-documents.ts",
     "matches:generate": "node --env-file-if-exists=.env.local --experimental-strip-types scripts/generate-matches.ts",
     "verify": "npm run format:check && npm run lint && npm run typecheck && npm run test && npm run build",
     "preview": "next dev"

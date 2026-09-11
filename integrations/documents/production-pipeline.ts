@@ -5,13 +5,21 @@ import { createPdfDocumentReader } from './pdf-reader.ts';
 import { processProcurementDocument } from './process-document.ts';
 
 /** Composição exclusiva de servidor: texto nativo, OCR sob demanda e estruturação. */
+export function createProductionDocumentServices(
+  env: NodeJS.ProcessEnv = process.env,
+) {
+  return {
+    reader: createPdfDocumentReader(createGoogleGeminiPdfOcrFromEnv(env)),
+    extractor: createGeminiExtractionAdapter(
+      createGoogleGeminiClientFromEnv(env),
+    ),
+  };
+}
+
 export function createProductionDocumentPipeline(
   env: NodeJS.ProcessEnv = process.env,
 ) {
-  const reader = createPdfDocumentReader(createGoogleGeminiPdfOcrFromEnv(env));
-  const extractor = createGeminiExtractionAdapter(
-    createGoogleGeminiClientFromEnv(env),
-  );
+  const { reader, extractor } = createProductionDocumentServices(env);
   return (input: { bytes: Uint8Array; sourceUrl: string }) =>
     processProcurementDocument({ ...input, reader, extractor });
 }

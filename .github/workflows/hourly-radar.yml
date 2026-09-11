@@ -19,6 +19,8 @@ jobs:
     env:
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GEMINI_DOCUMENT_LIMIT: 1
       PNCP_MODALITY_CODES: 6,7,8
     steps:
       - uses: actions/checkout@v6
@@ -35,6 +37,10 @@ jobs:
         id: documents
         continue-on-error: true
         run: npm run pncp:documents
+      - name: Estruturar um documento com evidência
+        id: processing
+        continue-on-error: true
+        run: npm run documents:process
       - name: Atualizar matches por organização
         if: always()
         run: npm run matches:generate
@@ -43,10 +49,14 @@ jobs:
         env:
           COLLECTION_OUTCOME: ${{ steps.collect.outcome }}
           DOCUMENTS_OUTCOME: ${{ steps.documents.outcome }}
+          PROCESSING_OUTCOME: ${{ steps.processing.outcome }}
         run: |
           if [ "$COLLECTION_OUTCOME" != "success" ]; then
             echo "::warning::Coleta PNCP degradada; backoff registrado no Supabase."
           fi
           if [ "$DOCUMENTS_OUTCOME" != "success" ]; then
             echo "::warning::Ingestão de documentos degradada; matches existentes foram preservados."
+          fi
+          if [ "$PROCESSING_OUTCOME" != "success" ]; then
+            echo "::warning::Processamento Gemini degradado; PDFs e texto já extraído foram preservados."
           fi

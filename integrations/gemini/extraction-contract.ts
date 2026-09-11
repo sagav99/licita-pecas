@@ -89,8 +89,15 @@ export function buildExtractionPrompt(sourceUrl: string) {
 }
 
 export function hasUsableEvidence(result: ProcurementExtraction) {
-  return result.evidence.some(
-    (evidence) =>
-      evidence.quote.trim().length >= 8 && evidence.sourceUrl.trim().length > 0,
+  return (
+    Array.isArray(result.evidence) &&
+    result.evidence.some(
+      (evidence) =>
+        evidence &&
+        typeof evidence.quote === 'string' &&
+        typeof evidence.sourceUrl === 'string' &&
+        evidence.quote.trim().length >= 8 &&
+        evidence.sourceUrl.trim().length > 0,
+    )
   );
 }
