@@ -9,7 +9,7 @@
 - [x] decisão de stack: Vercel + Supabase + Gemini;
 - [x] autenticação SSR por cookies e onboarding transacional de organização;
 - [x] escrever migration inicial Supabase com schema mínimo, constraints e RLS (aplicação em projeto ainda pendente);
-- [ ] persistir catálogo validado no Postgres e arquivo original no Storage;
+- [x] persistir catálogo validado no Postgres e arquivo original no Storage;
 - [x] integrar descoberta PNCP com fixture de contrato, paginação limitada e deduplicação (execução recorrente ainda pendente);
 - [ ] configurar uma fonte complementar e política de falha/circuit breaker;
 - [x] definir chaves determinísticas de idempotência para editais, documentos e alertas;
