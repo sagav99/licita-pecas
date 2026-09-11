@@ -5,7 +5,7 @@ Fatia vertical do MVP de radar comercial para distribuidoras de autopeças. A in
 ## Entregue nesta versão
 
 - radar responsivo com busca, filtro, score explicável e estados comerciais;
-- seleção, salvamento e triagem de oportunidades em uma experiência navegável;
+- seleção, salvamento e triagem persistente de oportunidades por organização;
 - importação de CSV/XLSX com conferência, revalidação no servidor, arquivo privado no Storage e upsert no Postgres;
 - regra de match pura e testada, incluindo bloqueio operacional e ausência de dados;
 - geração preliminar idempotente de matches por catálogo, região, valor e prazo;
