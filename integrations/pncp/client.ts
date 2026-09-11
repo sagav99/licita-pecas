@@ -166,19 +166,37 @@ export async function fetchPncpPage(
     fetcher?: typeof fetch;
     signal?: AbortSignal;
     baseUrl?: string;
+    attempts?: number;
+    sleep?: (delayMs: number) => Promise<void>;
   } = {},
 ) {
   const fetcher = options.fetcher ?? fetch;
-  const timeout = AbortSignal.timeout(15_000);
-  const signal = options.signal
-    ? AbortSignal.any([options.signal, timeout])
-    : timeout;
-  const response = await fetcher(buildPncpSearchUrl(search, options.baseUrl), {
-    headers: { Accept: 'application/json' },
-    signal,
-  });
-  if (!response.ok) throw new Error(`pncp_http_${response.status}`);
-  return parsePncpPage(await response.json());
+  const sleep =
+    options.sleep ??
+    ((delayMs: number) =>
+      new Promise<void>((resolve) => setTimeout(resolve, delayMs)));
+  const attempts = options.attempts ?? 4;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    const timeout = AbortSignal.timeout(15_000);
+    const signal = options.signal
+      ? AbortSignal.any([options.signal, timeout])
+      : timeout;
+    const response = await fetcher(
+      buildPncpSearchUrl(search, options.baseUrl),
+      { headers: { Accept: 'application/json' }, signal },
+    );
+    if (response.ok) return parsePncpPage(await response.json());
+    const retryable = response.status === 429 || response.status >= 500;
+    if (!retryable || attempt === attempts - 1)
+      throw new Error(`pncp_http_${response.status}`);
+    const retryAfter = Number(response.headers.get('retry-after'));
+    const delay =
+      Number.isFinite(retryAfter) && retryAfter > 0
+        ? Math.min(retryAfter * 1000, 30_000)
+        : ([2_000, 5_000, 10_000][attempt] ?? 10_000);
+    await sleep(delay);
+  }
+  throw new Error('pncp_retry_exhausted');
 }
 
 /**
@@ -192,6 +210,8 @@ export async function collectPncpPages(
     fetchPage?: (search: PncpSearch) => Promise<PncpPage>;
     maxPages?: number;
     baseUrl?: string;
+    pageDelayMs?: number;
+    sleep?: (delayMs: number) => Promise<void>;
   } = {},
 ): Promise<PncpCollection> {
   const maxPages = options.maxPages ?? 20;
@@ -202,6 +222,11 @@ export async function collectPncpPages(
     options.fetchPage ??
     ((pageSearch) => fetchPncpPage(pageSearch, { baseUrl: options.baseUrl }));
   const firstPage = search.page ?? 1;
+  const pageDelayMs = options.pageDelayMs ?? (options.fetchPage ? 0 : 750);
+  const sleep =
+    options.sleep ??
+    ((delayMs: number) =>
+      new Promise<void>((resolve) => setTimeout(resolve, delayMs)));
   let requestedPage = firstPage;
   let totalPages = firstPage;
   let pagesFetched = 0;
@@ -223,6 +248,7 @@ export async function collectPncpPages(
     const hasNextPage = page.remainingPages > 0 || page.page < page.totalPages;
     if (!hasNextPage) break;
     requestedPage = page.page + 1;
+    if (pageDelayMs > 0) await sleep(pageDelayMs);
   }
 
   return {
