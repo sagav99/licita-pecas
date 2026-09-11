@@ -3,6 +3,29 @@ import {
   matchLicitaPecas,
   type MatchCatalogItem,
 } from '../../domain/verticals/licita-pecas/matcher.ts';
+import type { ProcurementExtraction } from '../gemini/extraction-contract.ts';
+
+function storedExtraction(value: unknown): ProcurementExtraction | null {
+  if (!value || typeof value !== 'object') return null;
+  const candidate = value as Partial<ProcurementExtraction>;
+  const stringArray = (items: unknown): items is string[] =>
+    Array.isArray(items) && items.every((item) => typeof item === 'string');
+  if (
+    !stringArray(candidate.brands) ||
+    !stringArray(candidate.oemCodes) ||
+    !stringArray(candidate.applications) ||
+    !stringArray(candidate.deliveryRequirements) ||
+    !Array.isArray(candidate.evidence) ||
+    !candidate.evidence.every(
+      (evidence) =>
+        evidence &&
+        typeof evidence.quote === 'string' &&
+        typeof evidence.sourceUrl === 'string',
+    )
+  )
+    return null;
+  return value as ProcurementExtraction;
+}
 
 export async function generateLicitaPecasMatches(
   supabase: SupabaseClient,
@@ -27,6 +50,49 @@ export async function generateLicitaPecasMatches(
     .limit(1000);
   if (procurementError)
     throw new Error(`match_procurements_failed:${procurementError.code}`);
+  const procurementIds = (procurements ?? []).map((item) => item.id);
+  const documents = [] as Array<{
+    procurement_id: string;
+    structured_data: unknown;
+  }>;
+  for (let index = 0; index < procurementIds.length; index += 200) {
+    const { data, error } = await supabase
+      .from('procurement_documents')
+      .select('procurement_id,structured_data,fetched_at')
+      .in('procurement_id', procurementIds.slice(index, index + 200))
+      .not('structured_data', 'is', null)
+      .order('fetched_at', { ascending: false });
+    if (error) throw new Error(`match_documents_failed:${error.code}`);
+    documents.push(...(data ?? []));
+  }
+  const extractionByProcurement = new Map<string, ProcurementExtraction>();
+  for (const document of documents) {
+    const extraction = storedExtraction(document.structured_data);
+    if (!extraction) continue;
+    const current = extractionByProcurement.get(document.procurement_id);
+    extractionByProcurement.set(
+      document.procurement_id,
+      current
+        ? {
+            ...current,
+            brands: [...new Set([...current.brands, ...extraction.brands])],
+            oemCodes: [
+              ...new Set([...current.oemCodes, ...extraction.oemCodes]),
+            ],
+            applications: [
+              ...new Set([...current.applications, ...extraction.applications]),
+            ],
+            deliveryRequirements: [
+              ...new Set([
+                ...current.deliveryRequirements,
+                ...extraction.deliveryRequirements,
+              ]),
+            ],
+            evidence: [...current.evidence, ...extraction.evidence],
+          }
+        : extraction,
+    );
+  }
   let generated = 0;
   for (const organization of organizations ?? []) {
     const [
@@ -70,6 +136,7 @@ export async function generateLicitaPecasMatches(
           totalValue: procurement.total_value,
           deadlineAt: procurement.deadline_at,
           sourceUrl: procurement.source_url,
+          extraction: extractionByProcurement.get(procurement.id) ?? null,
         },
         catalog: normalizedCatalog,
         regions: profile?.regions ?? [],

@@ -1,5 +1,17 @@
 import { evaluateMatch, type MatchDecision } from '../../matching.ts';
 
+export type MatchExtraction = {
+  brands: string[];
+  oemCodes: string[];
+  applications: string[];
+  deliveryRequirements: string[];
+  evidence: Array<{
+    quote: string;
+    sourceUrl: string;
+    page?: number | null;
+  }>;
+};
+
 export type MatchCatalogItem = {
   id: string;
   sku: string;
@@ -18,6 +30,7 @@ export type MatchProcurement = {
   totalValue: number | null;
   deadlineAt: string | null;
   sourceUrl: string;
+  extraction?: MatchExtraction | null;
 };
 
 export type PreliminaryMatch = MatchDecision & {
@@ -57,6 +70,10 @@ function normalize(value: string) {
     .toLocaleLowerCase('pt-BR');
 }
 
+function normalizeCode(value: string) {
+  return normalize(value).replace(/[^a-z0-9]/g, '');
+}
+
 function tokens(value: string) {
   return new Set(
     normalize(value)
@@ -65,22 +82,53 @@ function tokens(value: string) {
   );
 }
 
-function technicalScore(object: string, item: MatchCatalogItem) {
-  const normalizedObject = normalize(object);
+function technicalScore(procurement: MatchProcurement, item: MatchCatalogItem) {
+  const extraction = procurement.extraction;
+  const technicalText = [
+    procurement.object,
+    ...(extraction?.evidence.map((evidence) => evidence.quote) ?? []),
+  ].join(' ');
+  const normalizedObject = normalize(technicalText);
   const codes = [item.oem, item.manufacturerCode].filter(
     (value): value is string => Boolean(value?.trim()),
   );
+  const extractedCodes = new Set(
+    (extraction?.oemCodes ?? [])
+      .filter((code) =>
+        extraction?.evidence.some((evidence) =>
+          normalizeCode(evidence.quote).includes(normalizeCode(code)),
+        ),
+      )
+      .map(normalizeCode)
+      .filter(Boolean),
+  );
+  const exactCode = codes.find((code) =>
+    extractedCodes.has(normalizeCode(code)),
+  );
+  if (exactCode)
+    return {
+      score: 100,
+      reason: `Código ${exactCode} do SKU ${item.sku} foi identificado no edital`,
+      proofTerm: exactCode,
+    };
   if (codes.some((code) => normalizedObject.includes(normalize(code))))
     return {
       score: 100,
-      reason: `Código do SKU ${item.sku} aparece no objeto`,
+      reason: `Código do SKU ${item.sku} aparece no texto oficial`,
+      proofTerm: codes.find((code) =>
+        normalizedObject.includes(normalize(code)),
+      ),
     };
   if (item.brand && normalizedObject.includes(normalize(item.brand)))
-    return { score: 86, reason: `Marca ${item.brand} coincide com o catálogo` };
+    return {
+      score: 86,
+      reason: `Marca ${item.brand} aparece no texto oficial e coincide com o catálogo`,
+      proofTerm: item.brand,
+    };
   const itemText = [item.description, item.category, item.application]
     .filter(Boolean)
     .join(' ');
-  const objectTokens = tokens(object);
+  const objectTokens = tokens(technicalText);
   const overlap = [...tokens(itemText)].filter((token) =>
     objectTokens.has(token),
   ).length;
@@ -88,6 +136,7 @@ function technicalScore(object: string, item: MatchCatalogItem) {
     return {
       score: Math.min(82, 48 + overlap * 12),
       reason: `SKU ${item.sku} compartilha ${overlap} termo(s) técnico(s)`,
+      proofTerm: [...tokens(itemText)].find((token) => objectTokens.has(token)),
     };
   return {
     score: 45,
@@ -106,10 +155,12 @@ export function matchLicitaPecas(input: {
     pattern.test(procurement.object),
   );
   const ranked = catalog
-    .map((item) => ({ item, ...technicalScore(procurement.object, item) }))
+    .map((item) => ({ item, ...technicalScore(procurement, item) }))
     .sort((a, b) => b.score - a.score);
   const best = ranked[0];
-  const missing: string[] = ['requisitos detalhados do edital'];
+  const missing: string[] = procurement.extraction
+    ? []
+    : ['requisitos detalhados do edital'];
   const reasons = best ? [best.reason] : [];
   const regions = (input.regions ?? []).map((region) => region.toUpperCase());
   let locality = 60;
@@ -141,23 +192,34 @@ export function matchLicitaPecas(input: {
     volume,
     locality,
     deadline,
-    requirements: 50,
+    requirements: procurement.extraction?.deliveryRequirements.length ? 75 : 50,
     hardBlock: blocked?.[1] ?? deadlineBlock,
     missing,
     positiveReasons: reasons,
     enoughData: catalog.length > 0,
   });
+  const proofTerm = best?.proofTerm;
+  const documentEvidence = proofTerm
+    ? procurement.extraction?.evidence.find((evidence) =>
+        normalizeCode(evidence.quote).includes(normalizeCode(proofTerm)),
+      )
+    : procurement.extraction?.evidence[0];
+  const evidence = documentEvidence
+    ? {
+        quote: documentEvidence.quote,
+        sourceUrl: documentEvidence.sourceUrl,
+        field: 'document',
+      }
+    : {
+        quote: procurement.object,
+        sourceUrl: procurement.sourceUrl,
+        field: 'object',
+      };
   return {
     ...decision,
     procurementId: procurement.id,
     catalogItemId: best?.item.id ?? null,
-    evidenceQuote: procurement.object,
-    evidence: [
-      {
-        quote: procurement.object,
-        sourceUrl: procurement.sourceUrl,
-        field: 'object',
-      },
-    ],
+    evidenceQuote: evidence.quote,
+    evidence: [evidence],
   };
 }
