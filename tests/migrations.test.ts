@@ -60,3 +60,15 @@ void test('storage buckets stay private and enforce tenant folders', async () =>
     /create policy "[^"]*procurement[^"]*"\s+on storage\.objects for insert/,
   );
 });
+
+void test('onboarding requires authentication and grants only the authenticated role', async () => {
+  const sql = await readFile(
+    new URL('../supabase/migrations/0004_onboarding.sql', import.meta.url),
+    'utf8',
+  );
+  assert.match(sql, /current_user_id uuid := auth\.uid\(\)/);
+  assert.match(sql, /if current_user_id is null/);
+  assert.match(sql, /security definer\s+set search_path = public/);
+  assert.match(sql, /revoke all on function[\s\S]+from public/);
+  assert.match(sql, /grant execute on function[\s\S]+to authenticated/);
+});

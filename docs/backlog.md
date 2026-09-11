@@ -7,6 +7,7 @@
 - [x] regra inicial de match e contrato multiempresa;
 - [x] telas de salvas, catálogo e preferências de alerta;
 - [x] decisão de stack: Vercel + Supabase + Gemini;
+- [x] autenticação SSR por cookies e onboarding transacional de organização;
 - [x] escrever migration inicial Supabase com schema mínimo, constraints e RLS (aplicação em projeto ainda pendente);
 - [ ] persistir catálogo validado no Postgres e arquivo original no Storage;
 - [x] integrar descoberta PNCP com fixture de contrato, paginação limitada e deduplicação (execução recorrente ainda pendente);
@@ -25,7 +26,7 @@
 
 ## P1 — operação do piloto
 
-- [ ] conectar tela completa de perfil logístico, marcas e exclusões (schema pronto);
+- [ ] completar tela de perfil logístico, marcas e exclusões (organização e schema conectados);
 - [ ] histórico de versões e diff de retificações;
 - [ ] conectar feedback de qualidade por match (schema e isolamento prontos);
 - [ ] observabilidade de fontes, filas e custos;

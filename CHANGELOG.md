@@ -9,6 +9,7 @@
 - Migration operacional para documentos versionados, fontes, lotes, itens, perfil, preferências, feedback e importações, com RLS e plano de mitigação.
 - Buckets privados de catálogos e editais com limites de arquivo e políticas de acesso por organização.
 - Cliente Gemini oficial no servidor com JSON Schema, conteúdo não confiável isolado e verificação segura de conectividade.
+- Autenticação Supabase SSR, renovação por cookies, login/cadastro e onboarding transacional de organizações.
 
 - Chaves determinísticas para impedir duplicidade de editais, versões de documentos e alertas.
 - Contrato de ingestão para comparar hashes, emitir eventos de alteração e preservar versões.
