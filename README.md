@@ -11,6 +11,7 @@ Fatia vertical do MVP de radar comercial para distribuidoras de autopeças. A in
 - coleta PNCP paginada, limitada e deduplicada com fixture sanitizada;
 - ingestão idempotente, versionamento de documentos e eventos de mudança;
 - planejador de alertas com opt-out, prazo, retificação e link oficial;
+- pipeline server-side de PDF com texto nativo, OCR Gemini somente como fallback e estruturação com evidência;
 - migrations Supabase com núcleo operacional e RLS multiempresa;
 - navegação entre radar, oportunidades salvas, catálogo e alertas;
 - arquitetura definida para Vercel, Supabase Auth/Postgres/Storage e Gemini API;
