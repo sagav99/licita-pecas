@@ -14,13 +14,14 @@
 - [ ] configurar uma fonte complementar e política de falha/circuit breaker;
 - [x] definir chaves determinísticas de idempotência para editais, documentos e alertas;
 - [x] detectar versões de documentos e campos alterados sem apagar o histórico;
+- [x] buscar PDFs oficiais do PNCP em lote limitado, persistir hash/arquivo privado e emitir evento de versão;
 - [x] expor decisão de match por vertical com motivos, bloqueios e dados ausentes;
 - [x] decidir alertas por opt-out, tipo habilitado e chave de deduplicação;
 - [x] encapsular Gemini em adapter injetável com validação de JSON/evidência;
 - [x] abstrair leitura nativa de PDF e fallback OCR sem acoplar fornecedor;
 - [x] criar repositório em memória mockável com isolamento por organização;
 - [x] extrair PDF nativo e acionar OCR somente quando necessário;
-- [x] integrar Gemini no servidor para estruturação assistida com JSON Schema e evidência (persistência pelo coletor ainda pendente);
+- [x] integrar Gemini no servidor para estruturação assistida com JSON Schema e evidência (execução/persistência assíncrona ainda pendente);
 - [x] criar motor de alertas de novo edital, mudança e prazo com opt-out (entrega por e-mail ainda pendente);
 - [ ] validar com 5–10 distribuidores e medir precisão/ruído.
 

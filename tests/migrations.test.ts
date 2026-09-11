@@ -107,3 +107,19 @@ void test('summary matches have a stable idempotency key', async () => {
   assert.match(sql, /unique index[\s\S]+matches \(match_key\)/);
   assert.match(sql, /missing_data jsonb/);
 });
+
+void test('document registration is atomic and restricted to service role', async () => {
+  const sql = await readFile(
+    new URL(
+      '../supabase/migrations/0008_document_ingestion.sql',
+      import.meta.url,
+    ),
+    'utf8',
+  );
+  assert.match(sql, /register_procurement_document_version/);
+  assert.match(sql, /previous_version_id/);
+  assert.match(sql, /insert into public\.source_events/);
+  assert.match(sql, /auth\.role\(\) <> 'service_role'/);
+  assert.match(sql, /grant execute on function[\s\S]+to service_role/);
+  assert.match(sql, /documents_checked_at/);
+});

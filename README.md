@@ -10,6 +10,7 @@ Fatia vertical do MVP de radar comercial para distribuidoras de autopeças. A in
 - regra de match pura e testada, incluindo bloqueio operacional e ausência de dados;
 - geração preliminar idempotente de matches por catálogo, região, valor e prazo;
 - coleta PNCP paginada, limitada e deduplicada, com persistência em lotes, lease e saúde da fonte;
+- coleta limitada de editais e termos de referência do PNCP, com PDF privado, hash, versões imutáveis e eventos de mudança;
 - ingestão idempotente, versionamento de documentos e eventos de mudança;
 - planejador de alertas com opt-out, prazo, retificação e link oficial;
 - pipeline server-side de PDF com texto nativo, OCR Gemini somente como fallback e estruturação com evidência;
@@ -18,7 +19,7 @@ Fatia vertical do MVP de radar comercial para distribuidoras de autopeças. A in
 - arquitetura definida para Vercel, Supabase Auth/Postgres/Storage e Gemini API;
 - ferramenta WebMCP de filtro, quando o navegador oferecer suporte.
 
-O radar autenticado usa somente matches permitidos para a organização pelo Supabase. Coleta recorrente, persistência do processamento documental e envio real de alertas permanecem pendentes.
+O radar autenticado usa somente matches permitidos para a organização pelo Supabase. A estruturação dos PDFs persistidos, a fonte complementar e o envio real de alertas permanecem pendentes.
 
 ## Rodar localmente
 
@@ -50,6 +51,12 @@ pregões presenciais e dispensas do dia em horário de Brasília. O filtro inici
 O GitHub Actions executa coleta e matching a cada hora, com lease no banco e
 concorrência serializada. Os mesmos comandos permanecem disponíveis para
 execução manual. Não exponha a chave administrativa em uma rota de cliente.
+
+O mesmo workflow verifica um lote pequeno de documentos oficiais com
+`npm run pncp:documents`. Somente URLs HTTPS do domínio do PNCP são aceitas; os
+downloads têm limite de tamanho e são identificados por SHA-256 antes de serem
+armazenados no bucket privado. Alterações criam uma nova linha e preservam a
+versão anterior.
 
 ## Limites de segurança
 

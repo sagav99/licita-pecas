@@ -1,6 +1,6 @@
 # Log de ciclos autônomos
 
-Cada passagem registra uma tarefa pequena, reversível e validada localmente. Integrações externas, deploy e uso de credenciais permanecem pendentes.
+Cada passagem registra uma tarefa pequena, reversível e validada. Integrações externas são ativadas de forma incremental, sem versionar credenciais.
 
 Após o encerramento das oito passagens agendadas, o desenvolvimento voltou ao modo contínuo por solicitação do usuário.
 
@@ -65,3 +65,10 @@ Após o encerramento das oito passagens agendadas, o desenvolvimento voltou ao m
 - Criado `data/repository.ts` com interface mockável e implementação em memória para desenvolvimento/testes.
 - Testes confirmam isolamento entre organizações e operações idempotentes.
 - Pendências que exigem decisão/ambiente externo: conectar Supabase real, configurar Storage, provider de e-mail e chave Gemini.
+
+## Operação conectada — 2026-09-11
+
+- Supabase, Vercel e GitHub Actions foram conectados; coleta e matching reais executam de forma horária.
+- O cliente do PNCP passou a respeitar `Retry-After`, aplicar retry limitado e espaçar páginas após um `429` observado no runner compartilhado.
+- Implementada ingestão limitada de documentos: lista oficial do PNCP, prioridade para termo de referência/edital, host permitido, teto de bytes, SHA-256, Storage privado e registro transacional da versão com evento.
+- A próxima etapa segura é processar os PDFs pendentes fora da descoberta, com limite de cota Gemini e persistência de texto/evidência.
