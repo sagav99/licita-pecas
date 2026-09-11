@@ -8,6 +8,7 @@
 - Planejador de alertas para novo match, retificação, reclassificação e prazo próximo, sempre deduplicado e com fonte oficial.
 - Migration operacional para documentos versionados, fontes, lotes, itens, perfil, preferências, feedback e importações, com RLS e plano de mitigação.
 - Buckets privados de catálogos e editais com limites de arquivo e políticas de acesso por organização.
+- Cliente Gemini oficial no servidor com JSON Schema, conteúdo não confiável isolado e verificação segura de conectividade.
 
 - Chaves determinísticas para impedir duplicidade de editais, versões de documentos e alertas.
 - Contrato de ingestão para comparar hashes, emitir eventos de alteração e preservar versões.
