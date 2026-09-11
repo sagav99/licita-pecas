@@ -10,6 +10,7 @@
 - Buckets privados de catálogos e editais com limites de arquivo e políticas de acesso por organização.
 - Cliente Gemini oficial no servidor com JSON Schema, conteúdo não confiável isolado e verificação segura de conectividade.
 - Autenticação Supabase SSR, renovação por cookies, login/cadastro e onboarding transacional de organizações.
+- Ingestão limitada de documentos oficiais do PNCP com validação de host/PDF/tamanho, Storage privado, hash e evento transacional de versão.
 
 - Chaves determinísticas para impedir duplicidade de editais, versões de documentos e alertas.
 - Contrato de ingestão para comparar hashes, emitir eventos de alteração e preservar versões.
