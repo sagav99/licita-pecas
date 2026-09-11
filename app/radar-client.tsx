@@ -117,6 +117,7 @@ type RadarClientProps = {
   initialCatalogCount: number;
   initialSaved: string[];
   initialWorkflow: Record<string, string>;
+  signOutAction?: () => Promise<void>;
 };
 
 const catalogPreview = [
@@ -345,6 +346,7 @@ export default function RadarClient({
   initialCatalogCount,
   initialSaved,
   initialWorkflow,
+  signOutAction,
 }: RadarClientProps) {
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState('Todos');
@@ -582,6 +584,18 @@ export default function RadarClient({
               </p>
             </div>
             <div className="flex items-center gap-2">
+              {signOutAction && (
+                <form action={signOutAction}>
+                  <Button
+                    type="submit"
+                    variant="ghost"
+                    size="sm"
+                    className="hidden text-[#60716b] sm:inline-flex"
+                  >
+                    Sair
+                  </Button>
+                </form>
+              )}
               <Dialog open={importOpen} onOpenChange={setImportOpen}>
                 <DialogTrigger
                   render={
