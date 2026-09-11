@@ -72,3 +72,14 @@ void test('onboarding requires authentication and grants only the authenticated 
   assert.match(sql, /revoke all on function[\s\S]+from public/);
   assert.match(sql, /grant execute on function[\s\S]+to authenticated/);
 });
+
+void test('catalog import can only be advanced inside the current organization', async () => {
+  const sql = await readFile(
+    new URL('../supabase/migrations/0005_catalog_import.sql', import.meta.url),
+    'utf8',
+  );
+  assert.match(sql, /catalog_imports for update to authenticated/);
+  assert.match(sql, /public\.is_org_member\(organization_id\)/);
+  assert.match(sql, /created_by = auth\.uid\(\)/);
+  assert.match(sql, /reference_price numeric[\s\S]+reference_price >= 0/);
+});

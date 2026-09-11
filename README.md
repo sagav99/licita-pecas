@@ -6,7 +6,7 @@ Fatia vertical do MVP de radar comercial para distribuidoras de autopeças. A in
 
 - radar responsivo com busca, filtro, score explicável e estados comerciais;
 - seleção, salvamento e triagem de oportunidades em uma experiência navegável;
-- importação local de CSV/XLSX com detecção de cabeçalhos e conferência antes da gravação;
+- importação de CSV/XLSX com conferência, revalidação no servidor, arquivo privado no Storage e upsert no Postgres;
 - regra de match pura e testada, incluindo bloqueio operacional e ausência de dados;
 - coleta PNCP paginada, limitada e deduplicada com fixture sanitizada;
 - ingestão idempotente, versionamento de documentos e eventos de mudança;
@@ -16,7 +16,7 @@ Fatia vertical do MVP de radar comercial para distribuidoras de autopeças. A in
 - arquitetura definida para Vercel, Supabase Auth/Postgres/Storage e Gemini API;
 - ferramenta WebMCP de filtro, quando o navegador oferecer suporte.
 
-Os editais e produtos exibidos são dados demonstrativos sanitizados. Os contratos de Supabase, Gemini, coleta PNCP, OCR e alertas estão implementados e testados localmente; execução recorrente, persistência e envio real serão conectados quando existirem credenciais e ambiente configurado.
+Os editais exibidos ainda são dados demonstrativos sanitizados. Autenticação, onboarding e persistência de catálogo usam o Supabase configurado; coleta recorrente, OCR e envio real de alertas permanecem pendentes.
 
 ## Rodar localmente
 
@@ -42,6 +42,7 @@ O frontend usa Next.js e está pronto para preview ou deploy na Vercel. As vari�
 - toda consulta do Supabase deverá incluir isolamento por `organization_id` e RLS;
 - não confiar em `organization_id` enviado pelo navegador;
 - arquivos deverão ser limitados por tipo e tamanho antes de ir ao Supabase Storage;
+- uploads seguem direto do navegador para o Storage por URL assinada; a Function recebe apenas metadados e revalida o arquivo armazenado, evitando o limite de payload da Vercel;
 - `SUPABASE_SERVICE_ROLE_KEY` e `GEMINI_API_KEY` nunca poderão chegar ao navegador;
 - segredos permanecem fora do código e seus nomes ficam em `.env.example`;
 - resumos e scores apoiam triagem comercial, não habilitação ou análise jurídica;

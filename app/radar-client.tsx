@@ -49,6 +49,7 @@ import {
   rowsToCatalogItems,
   type CatalogImportItem,
 } from '@/domain/catalog';
+import { createClient as createBrowserSupabaseClient } from '@/lib/supabase/client';
 
 const opportunities = [
   {
@@ -364,6 +365,7 @@ export default function RadarClient({
     file?: File;
     items?: CatalogImportItem[];
     phase?: 'ready' | 'sending' | 'done';
+    deduplicated?: boolean;
     error?: string;
   } | null>(null);
 
@@ -451,12 +453,12 @@ export default function RadarClient({
   async function handleCatalogFile(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
+    if (file.size > 15 * 1024 * 1024) {
       setImportState({
         name: file.name,
         rows: 0,
         mapping: [],
-        error: 'O arquivo deve ter no máximo 5 MB.',
+        error: 'O arquivo deve ter no máximo 15 MB.',
       });
       return;
     }
@@ -510,15 +512,79 @@ export default function RadarClient({
     setWorkflow((current) => ({ ...current, [procurementId]: label }));
   }
 
-  function confirmCatalogImport() {
+  async function confirmCatalogImport() {
     if (!importState?.file || !importState.items?.length) return;
     setImportState((current) =>
       current ? { ...current, phase: 'sending', error: undefined } : current,
     );
-    setCatalogCount((current) => current + importState.items!.length);
-    setImportState((current) =>
-      current ? { ...current, phase: 'done' } : current,
-    );
+    try {
+      const prepareResponse = await fetch('/api/catalog-imports/uploads', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          name: importState.file.name,
+          size: importState.file.size,
+        }),
+      });
+      const prepared = (await prepareResponse.json()) as {
+        error?: string;
+        path?: string;
+        token?: string;
+      };
+      if (!prepareResponse.ok || !prepared.path || !prepared.token) {
+        throw new Error(prepared.error || 'Não foi possível preparar o envio.');
+      }
+      const contentType = importState.file.name
+        .toLocaleLowerCase()
+        .endsWith('.csv')
+        ? 'text/csv'
+        : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      const { error: uploadError } = await createBrowserSupabaseClient()
+        .storage.from('catalog-imports')
+        .uploadToSignedUrl(prepared.path, prepared.token, importState.file, {
+          contentType,
+        });
+      if (uploadError) throw new Error('O envio do arquivo não foi concluído.');
+      const finalizeResponse = await fetch('/api/catalog-imports', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          path: prepared.path,
+          originalName: importState.file.name,
+        }),
+      });
+      const result = (await finalizeResponse.json()) as {
+        error?: string;
+        imported?: number;
+        catalogCount?: number;
+        deduplicated?: boolean;
+      };
+      if (!finalizeResponse.ok) throw new Error(result.error);
+      setCatalogCount(result.catalogCount ?? catalogCount);
+      setImportState((current) =>
+        current
+          ? {
+              ...current,
+              rows: result.imported ?? current.rows,
+              phase: 'done',
+              deduplicated: result.deduplicated,
+            }
+          : current,
+      );
+    } catch (error) {
+      setImportState((current) =>
+        current
+          ? {
+              ...current,
+              phase: 'ready',
+              error:
+                error instanceof Error && error.message
+                  ? error.message
+                  : 'Não foi possível importar o catálogo.',
+            }
+          : current,
+      );
+    }
   }
 
   return (
@@ -622,7 +688,7 @@ export default function RadarClient({
                     <Upload className="mb-3 h-7 w-7 text-[#507719]" />
                     <span className="font-semibold">Escolha seu arquivo</span>
                     <span className="mt-1 text-xs text-[#6a7d76]">
-                      CSV ou XLSX · até 5 MB · sem preço de custo
+                      CSV ou XLSX · até 15 MB · sem preço de custo
                     </span>
                     <input
                       className="sr-only"
@@ -648,8 +714,9 @@ export default function RadarClient({
                       </div>
                       {importState.phase === 'done' ? (
                         <p className="mt-3 rounded-lg bg-emerald-50 p-3 text-sm font-medium text-emerald-800">
-                          {importState.rows} produtos importados e disponíveis
-                          para o match.
+                          {importState.deduplicated
+                            ? 'Este arquivo já havia sido importado. Nenhum produto foi duplicado.'
+                            : `${importState.rows} produtos importados e disponíveis para o match.`}
                         </p>
                       ) : importState.error ? (
                         <p className="mt-3 text-sm text-rose-700">
