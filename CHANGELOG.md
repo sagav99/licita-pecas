@@ -7,6 +7,7 @@
 - Coletor PNCP paginado, limitado e deduplicado, com fixture sanitizada de contrato.
 - Planejador de alertas para novo match, retificação, reclassificação e prazo próximo, sempre deduplicado e com fonte oficial.
 - Migration operacional para documentos versionados, fontes, lotes, itens, perfil, preferências, feedback e importações, com RLS e plano de mitigação.
+- Buckets privados de catálogos e editais com limites de arquivo e políticas de acesso por organização.
 
 - Chaves determinísticas para impedir duplicidade de editais, versões de documentos e alertas.
 - Contrato de ingestão para comparar hashes, emitir eventos de alteração e preservar versões.
