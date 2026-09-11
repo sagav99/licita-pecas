@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
   buildPncpSearchUrl,
   collectPncpPages,
+  fetchPncpPage,
   parsePncpPage,
 } from '../integrations/pncp/client.ts';
 import { nextSourceHealth } from '../integrations/sources/health.ts';
@@ -122,6 +123,36 @@ void test('rejects invalid ranges before calling the PNCP', () => {
       }),
     /invalid_date_range/,
   );
+});
+
+void test('retries PNCP rate limits with bounded server guidance', async () => {
+  let calls = 0;
+  const delays: number[] = [];
+  const result = await fetchPncpPage(
+    { startDate: '20260911', endDate: '20260911', modalityCode: 6 },
+    {
+      fetcher: async () => {
+        calls += 1;
+        if (calls === 1)
+          return new Response('', {
+            status: 429,
+            headers: { 'retry-after': '2' },
+          });
+        return Response.json({
+          data: [],
+          numeroPagina: 1,
+          totalPaginas: 1,
+          paginasRestantes: 0,
+        });
+      },
+      sleep: async (delay) => {
+        delays.push(delay);
+      },
+    },
+  );
+  assert.equal(result.page, 1);
+  assert.equal(calls, 2);
+  assert.deepEqual(delays, [2000]);
 });
 
 void test('pauses unstable complementary sources with capped backoff', () => {
