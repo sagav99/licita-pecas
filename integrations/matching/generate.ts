@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { storedProfileTerms } from '../../domain/supplier-profile.ts';
 import {
   matchLicitaPecas,
   type MatchCatalogItem,
@@ -148,7 +149,7 @@ export async function generateLicitaPecasMatches(
         .eq('active', true),
       supabase
         .from('supplier_profiles')
-        .select('regions')
+        .select('regions,catalog_rules,exclusions')
         .eq('organization_id', organization.id)
         .maybeSingle(),
     ]);
@@ -167,6 +168,13 @@ export async function generateLicitaPecasMatches(
       category: item.category,
       application: item.application,
     }));
+    const catalogRules = profile?.catalog_rules as {
+      brands?: unknown;
+      categories?: unknown;
+    } | null;
+    const brands = storedProfileTerms(catalogRules?.brands, 30);
+    const categories = storedProfileTerms(catalogRules?.categories, 30);
+    const exclusions = storedProfileTerms(profile?.exclusions, 20);
     const rows = (procurements ?? []).map((procurement) => {
       const result = matchLicitaPecas({
         procurement: {
@@ -184,6 +192,9 @@ export async function generateLicitaPecasMatches(
         },
         catalog: normalizedCatalog,
         regions: profile?.regions ?? [],
+        brands,
+        categories,
+        exclusions,
         now,
       });
       const negativeReasons = result.reasons.filter((reason) =>

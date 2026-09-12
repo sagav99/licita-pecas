@@ -3,6 +3,47 @@
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
+import {
+  validateSupplierProfile,
+  type SupplierProfileInput,
+} from '@/domain/supplier-profile';
+
+export type { SupplierProfileInput } from '@/domain/supplier-profile';
+
+export async function updateSupplierProfile(
+  input: SupplierProfileInput,
+): Promise<{ ok: boolean; error?: string }> {
+  const profile = validateSupplierProfile(input);
+  if (!profile) return { ok: false, error: 'Perfil de fornecimento inválido.' };
+
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getClaims();
+  const userId = data?.claims?.sub;
+  if (!userId) return { ok: false, error: 'Sessão expirada.' };
+  const { data: membership } = await supabase
+    .from('organization_members')
+    .select('organization_id')
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (!membership) return { ok: false, error: 'Organização não encontrada.' };
+
+  const { data: updated, error } = await supabase
+    .from('supplier_profiles')
+    .update({
+      regions: profile.regions,
+      delivery_radius_km: profile.deliveryRadiusKm,
+      catalog_rules: { brands: profile.brands, categories: profile.categories },
+      exclusions: profile.exclusions,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('organization_id', membership.organization_id)
+    .select('organization_id')
+    .maybeSingle();
+  if (error || !updated)
+    return { ok: false, error: 'Não foi possível salvar o perfil.' };
+  revalidatePath('/');
+  return { ok: true };
+}
 
 const alertTypes = new Set([
   'new_match',

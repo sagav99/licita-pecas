@@ -156,13 +156,24 @@ export function matchLicitaPecas(input: {
   procurement: MatchProcurement;
   catalog: MatchCatalogItem[];
   regions?: string[];
+  brands?: string[];
+  categories?: string[];
+  exclusions?: string[];
   now?: Date;
 }): PreliminaryMatch {
   const { procurement, catalog } = input;
+  const brands = new Set((input.brands ?? []).map(normalize));
+  const categories = new Set((input.categories ?? []).map(normalize));
+  const eligibleCatalog = catalog.filter(
+    (item) =>
+      (!brands.size || (item.brand && brands.has(normalize(item.brand)))) &&
+      (!categories.size ||
+        (item.category && categories.has(normalize(item.category)))),
+  );
   const blocked = serviceBlocks.find(([pattern]) =>
     pattern.test(procurement.object),
   );
-  const ranked = catalog
+  const ranked = eligibleCatalog
     .map((item) => ({ item, ...technicalScore(procurement, item) }))
     .sort((a, b) => b.score - a.score);
   const best = ranked[0];
@@ -170,6 +181,8 @@ export function matchLicitaPecas(input: {
     ? []
     : ['requisitos detalhados do edital'];
   const reasons = best ? [best.reason] : [];
+  if (catalog.length && !eligibleCatalog.length)
+    missing.push('nenhum SKU atende às marcas e categorias selecionadas');
   const regions = (input.regions ?? []).map((region) => region.toUpperCase());
   let locality = 60;
   if (!regions.length) missing.push('região de atendimento');
@@ -204,8 +217,21 @@ export function matchLicitaPecas(input: {
     hardBlock: blocked?.[1] ?? deadlineBlock,
     missing,
     positiveReasons: reasons,
-    enoughData: catalog.length > 0,
+    enoughData: eligibleCatalog.length > 0,
   });
+  const referencedExclusion = (input.exclusions ?? []).find((term) =>
+    normalize(
+      [
+        procurement.object,
+        ...(procurement.items ?? []).map((item) => item.description),
+      ].join(' '),
+    ).includes(normalize(term)),
+  );
+  if (referencedExclusion) {
+    decision.reasons.push(
+      `Atenção: edital cita “${referencedExclusion}”, termo marcado para revisão no perfil`,
+    );
+  }
   if (procurement.extractionScope === 'selected_excerpts') {
     decision.missing.push('trechos não analisados do edital completo');
     decision.reasons.push(
@@ -248,8 +274,12 @@ export function matchLicitaPecas(input: {
           sourceUrl: procurement.sourceUrl,
           field: 'object',
         };
+  const finalDecision: MatchDecision =
+    referencedExclusion && decision.status === 'compatível'
+      ? { ...decision, status: 'revisar' }
+      : decision;
   return {
-    ...decision,
+    ...finalDecision,
     procurementId: procurement.id,
     catalogItemId: best?.item.id ?? null,
     evidenceQuote: evidence.quote,

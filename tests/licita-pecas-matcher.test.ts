@@ -103,6 +103,31 @@ void test('downgrades a partial long-document result to human review', () => {
   assert.match(result.missing.join(' '), /trechos não analisados/);
 });
 
+void test('respects selected catalog lines without claiming a match on excluded SKUs', () => {
+  const result = matchLicitaPecas({
+    procurement,
+    catalog: [{ ...catalog[0], brand: 'Mann', category: 'Filtros' }],
+    brands: ['Bosch'],
+    regions: ['SP'],
+    now: new Date('2026-09-11T12:00:00Z'),
+  });
+  assert.equal(result.status, 'sem dados suficientes');
+  assert.equal(result.catalogItemId, null);
+  assert.match(result.missing.join(' '), /nenhum SKU/);
+});
+
+void test('a customer exclusion prompts review but does not discard a mixed lot', () => {
+  const result = matchLicitaPecas({
+    procurement: { ...procurement, object: `${procurement.object} e pneus` },
+    catalog,
+    exclusions: ['pneus'],
+    regions: ['SP'],
+    now: new Date('2026-09-11T12:00:00Z'),
+  });
+  assert.equal(result.status, 'revisar');
+  assert.match(result.reasons.join(' '), /termo marcado para revisão/);
+});
+
 void test('uses a structured PNCP item as technical evidence', () => {
   const result = matchLicitaPecas({
     procurement: {

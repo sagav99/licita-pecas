@@ -53,8 +53,10 @@ import {
 import type {
   AlertPreferencesInput,
   OpportunityStateInput,
+  SupplierProfileInput,
 } from '@/app/actions';
 import { createClient as createBrowserSupabaseClient } from '@/lib/supabase/client';
+import SupplierProfileView from '@/app/supplier-profile-view';
 
 export type RadarOpportunity = {
   id: string;
@@ -82,13 +84,14 @@ const tone: Record<string, string> = {
   'Sem dados': 'border-slate-200 bg-slate-50 text-slate-700',
 };
 
-type View = 'Radar' | 'Salvas' | 'Meu catálogo' | 'Alertas';
+type View = 'Radar' | 'Salvas' | 'Meu catálogo' | 'Alertas' | 'Meu perfil';
 
 const navItems: Array<[LucideIcon, View]> = [
   [LayoutDashboard, 'Radar'],
   [Bookmark, 'Salvas'],
   [PackageSearch, 'Meu catálogo'],
   [Bell, 'Alertas'],
+  [Settings2, 'Meu perfil'],
 ];
 
 type RadarClientProps = {
@@ -100,6 +103,7 @@ type RadarClientProps = {
   initialCatalogMetrics: CatalogMetrics;
   initialAlertPreferences: AlertPreferences;
   initialAlertActivity: AlertActivity[];
+  initialSupplierProfile: SupplierProfileInput;
   initialSaved: string[];
   initialWorkflow: Record<string, string>;
   initialOpportunities: RadarOpportunity[];
@@ -108,6 +112,9 @@ type RadarClientProps = {
   ) => Promise<{ ok: boolean; error?: string }>;
   updateOpportunityStateAction: (
     input: OpportunityStateInput,
+  ) => Promise<{ ok: boolean; error?: string }>;
+  updateSupplierProfileAction: (
+    input: SupplierProfileInput,
   ) => Promise<{ ok: boolean; error?: string }>;
   signOutAction?: () => Promise<void>;
 };
@@ -499,11 +506,13 @@ export default function RadarClient({
   initialCatalogMetrics,
   initialAlertPreferences,
   initialAlertActivity,
+  initialSupplierProfile,
   initialSaved,
   initialWorkflow,
   initialOpportunities: opportunities,
   updateAlertPreferencesAction,
   updateOpportunityStateAction,
+  updateSupplierProfileAction,
   signOutAction,
 }: RadarClientProps) {
   const [query, setQuery] = useState('');
@@ -515,6 +524,9 @@ export default function RadarClient({
   const [scoreFilter, setScoreFilter] = useState('Todos');
   const [filterReferenceTime] = useState(() => Date.now());
   const [activeView, setActiveView] = useState<View>('Radar');
+  const [supplierProfile, setSupplierProfile] = useState(
+    initialSupplierProfile,
+  );
   const [selectedId, setSelectedId] = useState(opportunities[0]?.id ?? '');
   const [saved, setSaved] = useState<string[]>(initialSaved);
   const [workflow, setWorkflow] =
@@ -1069,7 +1081,12 @@ export default function RadarClient({
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
-              <Button variant="ghost" size="icon" aria-label="Configurações">
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Meu perfil"
+                onClick={() => setActiveView('Meu perfil')}
+              >
                 <Settings2 className="h-5 w-5" />
               </Button>
               <div className="grid h-9 w-9 place-items-center rounded-full bg-[#173d34] text-sm font-bold text-white">
@@ -1094,9 +1111,19 @@ export default function RadarClient({
               updatePreferences={updateAlertPreferencesAction}
             />
           )}
+          {activeView === 'Meu perfil' && (
+            <SupplierProfileView
+              initialProfile={supplierProfile}
+              updateProfile={async (input) => {
+                const result = await updateSupplierProfileAction(input);
+                if (result.ok) setSupplierProfile(input);
+                return result;
+              }}
+            />
+          )}
 
           <div
-            className={`${activeView === 'Meu catálogo' || activeView === 'Alertas' ? 'hidden' : ''} px-5 py-7 md:px-8 md:py-8`}
+            className={`${activeView === 'Meu catálogo' || activeView === 'Alertas' || activeView === 'Meu perfil' ? 'hidden' : ''} px-5 py-7 md:px-8 md:py-8`}
           >
             <div className="mb-7 flex flex-col justify-between gap-5 xl:flex-row xl:items-end">
               <div>
