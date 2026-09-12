@@ -1,5 +1,8 @@
 import { extractDocumentText, type DocumentReader } from './extractor.ts';
-import { MAX_STRUCTURING_CHARACTERS } from './process-document.ts';
+import {
+  retainVerifiedDocumentEvidence,
+  selectStructuringText,
+} from './select-structuring-text.ts';
 import type {
   DocumentProcessingRepository,
   StoredExtractionMethod,
@@ -42,21 +45,22 @@ export async function runDocumentProcessing(input: {
         const read = await extractDocumentText(bytes, input.reader);
         text = read.text;
         method = read.method === 'native' ? 'native_text' : 'ocr';
-        if (text.length > MAX_STRUCTURING_CHARACTERS)
-          throw new Error('document_text_too_large');
         await input.repository.saveText(document.id, text, method);
       }
-      if (text.length > MAX_STRUCTURING_CHARACTERS)
-        throw new Error('document_text_too_large');
-      const structured = await input.extractor.extract({
+      const selected = selectStructuringText(text);
+      const result = await input.extractor.extract({
         sourceUrl: document.sourceUrl,
-        text,
+        text: selected.text,
+        scope: selected.scope,
       });
+      const structured = retainVerifiedDocumentEvidence(result, text);
       await input.repository.complete(
         document.id,
         structured,
         method ?? 'native_text',
         document.processingAttempts + 1,
+        selected.scope,
+        selected.text.length,
       );
       summary.completed += 1;
     } catch (error) {

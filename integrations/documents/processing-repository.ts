@@ -72,6 +72,8 @@ export function createDocumentProcessingRepository(supabase: SupabaseClient) {
       structured: ProcurementExtraction,
       method: StoredExtractionMethod,
       attempts: number,
+      scope: 'full' | 'selected_excerpts',
+      inputCharacters: number,
     ) {
       const { error } = await supabase
         .from('procurement_documents')
@@ -80,6 +82,8 @@ export function createDocumentProcessingRepository(supabase: SupabaseClient) {
           extraction_status: method,
           extraction_error_code: null,
           processing_attempts: attempts,
+          structuring_scope: scope,
+          structuring_input_characters: inputCharacters,
         })
         .eq('id', documentId);
       if (error)

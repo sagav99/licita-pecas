@@ -48,10 +48,15 @@ void test('persists native text before completing structured evidence', async ()
     async saveText() {
       events.push('text');
     },
-    async complete(_id, result, method, attempts) {
+    async complete(_id, result, method, attempts, scope, inputCharacters) {
       assert.equal(result.oemCodes[0], 'ABC-123');
       assert.equal(method, 'native_text');
       assert.equal(attempts, 1);
+      assert.equal(scope, 'full');
+      assert.equal(
+        inputCharacters,
+        'Texto nativo suficiente. Aquisição de filtros automotivos.'.length,
+      );
       events.push('complete');
     },
     async fail() {
@@ -62,7 +67,7 @@ void test('persists native text before completing structured evidence', async ()
     repository,
     reader: {
       async readNative() {
-        return 'Texto nativo suficiente do termo de referência.';
+        return 'Texto nativo suficiente. Aquisição de filtros automotivos.';
       },
       async readOcr() {
         throw new Error('ocr_should_not_run');
@@ -136,4 +141,62 @@ void test('reuses preserved OCR text and records a bounded Gemini failure', asyn
     2,
     'ocr',
   ]);
+});
+
+void test('preserves full text but structures only verified excerpts of a long PDF', async () => {
+  const longText =
+    'Aquisição de filtros automotivos para frota pública. '.repeat(7000);
+  let savedCharacters = 0;
+  let structuredCharacters = 0;
+  let savedScope = '';
+  const repository = {
+    async listPending() {
+      return [
+        {
+          id: 'document-long',
+          sourceUrl: 'https://pncp.gov.br/document.pdf',
+          storagePath: 'procurement/long.pdf',
+          extractedText: null,
+          extractionStatus: 'pending' as const,
+          processingAttempts: 0,
+        },
+      ];
+    },
+    async download() {
+      return new Uint8Array([1]);
+    },
+    async saveText(_id, text) {
+      savedCharacters = text.length;
+    },
+    async complete(_id, result, _method, _attempts, scope, inputCharacters) {
+      savedScope = scope;
+      structuredCharacters = inputCharacters;
+      assert.equal(result.evidence.length, 1);
+    },
+    async fail() {
+      throw new Error('should_not_fail');
+    },
+  } as DocumentProcessingRepository;
+  const summary = await runDocumentProcessing({
+    repository,
+    reader: {
+      async readNative() {
+        return longText;
+      },
+      async readOcr() {
+        throw new Error('ocr_should_not_run');
+      },
+    },
+    extractor: {
+      async extract(input) {
+        assert.equal(input.scope, 'selected_excerpts');
+        assert.ok(input.text.length < longText.length);
+        return structured;
+      },
+    },
+  });
+  assert.equal(savedCharacters, longText.trim().length);
+  assert.equal(savedScope, 'selected_excerpts');
+  assert.ok(structuredCharacters <= 100_000);
+  assert.equal(summary.completed, 1);
 });

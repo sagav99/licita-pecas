@@ -31,6 +31,7 @@ export type MatchProcurement = {
   deadlineAt: string | null;
   sourceUrl: string;
   extraction?: MatchExtraction | null;
+  extractionScope?: 'full' | 'selected_excerpts' | null;
   items?: Array<{ description: string; codes: string[] }>;
 };
 
@@ -205,6 +206,18 @@ export function matchLicitaPecas(input: {
     positiveReasons: reasons,
     enoughData: catalog.length > 0,
   });
+  if (procurement.extractionScope === 'selected_excerpts') {
+    decision.missing.push('trechos não analisados do edital completo');
+    decision.reasons.push(
+      'Documento longo: apenas trechos selecionados foram estruturados; revise o edital integral',
+    );
+    if (
+      !blocked &&
+      !deadlineBlock &&
+      decision.status !== 'sem dados suficientes'
+    )
+      decision.status = 'revisar';
+  }
   const proofTerm = best?.proofTerm;
   const documentEvidence = proofTerm
     ? procurement.extraction?.evidence.find((evidence) =>
