@@ -36,3 +36,4 @@
 - Documentos longos usam seleção limitada de trechos sem descartar o texto integral; a análise parcial fica auditável e rebaixa o match para revisão humana.
 - Perfil de fornecimento permite configurar UFs, raio, marcas, categorias e termos de revisão; as regras aplicáveis passam a orientar o match da organização.
 - O cliente pode avaliar a qualidade de cada match com motivo opcional, preservando isolamento entre organizações e sem alterar a decisão automaticamente.
+- A ficha da oportunidade agora exibe todos os motivos, dados a confirmar e link do documento que sustenta o trecho de evidência.

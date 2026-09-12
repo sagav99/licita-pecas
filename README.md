@@ -87,6 +87,9 @@ Na ficha de cada oportunidade, a pessoa pode avaliar uma vez se o match
 acertou, foi parcial ou errou, com motivo opcional. Esse feedback fica
 registrado para a equipe revisar regras futuras; ele não altera automaticamente
 a classificação nem substitui a leitura do edital.
+A ficha apresenta todos os motivos e dados faltantes do match, além do trecho
+e link específicos do documento de evidência quando essa origem estiver
+disponível.
 
 ## Fonte complementar Compras.gov.br
 

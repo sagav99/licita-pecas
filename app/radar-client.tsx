@@ -75,7 +75,11 @@ export type RadarOpportunity = {
   status: string;
   tags: string[];
   reason: string;
+  reasons: string[];
+  missing: string[];
   evidence: string;
+  evidenceSourceUrl: string;
+  evidenceType: 'document' | 'item' | 'object';
   sourceUrl: string;
   deadlineAt: string | null;
 };
@@ -1422,6 +1426,30 @@ export default function RadarClient({
                   <p className="mt-4 text-xl font-extrabold leading-tight tracking-[-0.025em]">
                     {selected.reason}
                   </p>
+                  {selected.reasons.length > 1 && (
+                    <div className="mt-4">
+                      <h3 className="text-xs font-bold uppercase tracking-wide text-[#d7ff57]">
+                        Outros motivos
+                      </h3>
+                      <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-[#c9d6d2]">
+                        {selected.reasons.slice(1).map((reason, index) => (
+                          <li key={`${index}-${reason}`}>{reason}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {selected.missing.length > 0 && (
+                    <div className="mt-4 rounded-xl border border-amber-300/30 bg-amber-200/10 p-3">
+                      <h3 className="text-xs font-bold uppercase tracking-wide text-amber-200">
+                        Confirmar no edital
+                      </h3>
+                      <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-amber-50">
+                        {selected.missing.map((field, index) => (
+                          <li key={`${index}-${field}`}>{field}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                   <div className="mt-5 space-y-3 text-sm">
                     <div className="flex gap-3">
                       <FileCheck2 className="mt-0.5 h-4 w-4 shrink-0 text-[#d7ff57]" />
@@ -1448,9 +1476,23 @@ export default function RadarClient({
                     “{selected.evidence}”
                   </blockquote>
                   <p className="mt-3 text-xs text-[#8fa8a0]">
-                    Trecho disponível nos dados oficiais; confira o documento
-                    completo
+                    {selected.evidenceType === 'document'
+                      ? 'Trecho do documento oficial; confira o PDF completo'
+                      : selected.evidenceType === 'item'
+                        ? 'Descrição de item da fonte oficial'
+                        : 'Objeto publicado na fonte oficial'}
                   </p>
+                  {selected.evidenceSourceUrl &&
+                    selected.evidenceSourceUrl !== selected.sourceUrl && (
+                      <a
+                        href={selected.evidenceSourceUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-2 inline-block text-sm font-semibold text-[#d7ff57] underline underline-offset-4"
+                      >
+                        Abrir fonte da evidência
+                      </a>
+                    )}
                   <div className="mt-5 grid grid-cols-2 gap-2">
                     {['Avaliando', 'Vai disputar', 'Não atende', 'Perdida'].map(
                       (value) => (

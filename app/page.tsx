@@ -7,6 +7,7 @@ import RadarClient, {
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { storedProfileTerms } from '@/domain/supplier-profile';
+import { explainStoredMatch } from '@/domain/opportunity-explanation';
 import {
   signOut,
   updateAlertPreferences,
@@ -84,7 +85,7 @@ export default async function Home() {
     supabase
       .from('matches')
       .select(
-        'id,status,score,reasons,evidence_quote,procurements!inner(id,external_id,agency,municipality,state,modality,object,total_value,deadline_at,source_url)',
+        'id,status,score,reasons,missing_data,evidence,evidence_quote,procurements!inner(id,external_id,agency,municipality,state,modality,object,total_value,deadline_at,source_url)',
       )
       .eq('organization_id', membership.organization_id)
       .order('score', { ascending: false, nullsFirst: false })
@@ -150,11 +151,14 @@ export default async function Home() {
         ? match.procurements[0]
         : match.procurements;
       if (!procurement) return [];
-      const reasons = Array.isArray(match.reasons)
-        ? match.reasons.filter(
-            (value): value is string => typeof value === 'string',
-          )
-        : [];
+      const explanation = explainStoredMatch({
+        reasons: match.reasons,
+        missingData: match.missing_data,
+        evidence: match.evidence,
+        evidenceQuote: match.evidence_quote,
+        object: procurement.object,
+        sourceUrl: procurement.source_url,
+      });
       return [
         {
           id: procurement.id,
@@ -198,8 +202,14 @@ export default async function Home() {
           tags: [procurement.modality, procurement.state].filter(
             (value): value is string => Boolean(value),
           ),
-          reason: reasons[0] ?? 'Dados preliminares; confira o edital oficial.',
-          evidence: match.evidence_quote ?? procurement.object,
+          reason:
+            explanation.reasons[0] ??
+            'Dados preliminares; confira o edital oficial.',
+          reasons: explanation.reasons,
+          missing: explanation.missing,
+          evidence: explanation.evidenceQuote,
+          evidenceSourceUrl: explanation.evidenceSourceUrl,
+          evidenceType: explanation.evidenceType,
           sourceUrl: procurement.source_url,
         },
       ];
