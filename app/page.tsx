@@ -12,6 +12,7 @@ import {
   updateAlertPreferences,
   updateOpportunityState,
   updateSupplierProfile,
+  submitMatchFeedback,
 } from './actions';
 
 export default async function Home() {
@@ -83,7 +84,7 @@ export default async function Home() {
     supabase
       .from('matches')
       .select(
-        'status,score,reasons,evidence_quote,procurements!inner(id,external_id,agency,municipality,state,modality,object,total_value,deadline_at,source_url)',
+        'id,status,score,reasons,evidence_quote,procurements!inner(id,external_id,agency,municipality,state,modality,object,total_value,deadline_at,source_url)',
       )
       .eq('organization_id', membership.organization_id)
       .order('score', { ascending: false, nullsFirst: false })
@@ -94,6 +95,15 @@ export default async function Home() {
       .eq('organization_id', membership.organization_id)
       .maybeSingle(),
   ]);
+  const matchIds = (matches ?? []).map((match) => match.id);
+  const { data: feedbackRows } = matchIds.length
+    ? await supabase
+        .from('match_feedback')
+        .select('match_id,rating')
+        .eq('organization_id', membership.organization_id)
+        .eq('created_by', userId)
+        .in('match_id', matchIds)
+    : { data: [] as Array<{ match_id: string; rating: string }> };
   const email =
     typeof data.claims.email === 'string' ? data.claims.email : 'Usuário';
   const catalogRows = catalogItems ?? [];
@@ -148,6 +158,7 @@ export default async function Home() {
       return [
         {
           id: procurement.id,
+          matchId: match.id,
           externalId: procurement.external_id,
           agency: procurement.agency,
           title: procurement.object,
@@ -254,6 +265,10 @@ export default async function Home() {
       initialSaved={initialSaved}
       initialWorkflow={initialWorkflow}
       initialOpportunities={opportunities}
+      initialFeedback={Object.fromEntries(
+        (feedbackRows ?? []).map((row) => [row.match_id, row.rating]),
+      )}
+      submitMatchFeedbackAction={submitMatchFeedback}
       signOutAction={signOut}
     />
   );

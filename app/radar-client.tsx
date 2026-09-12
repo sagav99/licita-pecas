@@ -52,14 +52,17 @@ import {
 } from '@/domain/catalog';
 import type {
   AlertPreferencesInput,
+  MatchFeedbackInput,
   OpportunityStateInput,
   SupplierProfileInput,
 } from '@/app/actions';
 import { createClient as createBrowserSupabaseClient } from '@/lib/supabase/client';
 import SupplierProfileView from '@/app/supplier-profile-view';
+import MatchFeedbackPanel from '@/app/match-feedback-panel';
 
 export type RadarOpportunity = {
   id: string;
+  matchId: string;
   externalId: string;
   agency: string;
   title: string;
@@ -107,6 +110,7 @@ type RadarClientProps = {
   initialSaved: string[];
   initialWorkflow: Record<string, string>;
   initialOpportunities: RadarOpportunity[];
+  initialFeedback: Record<string, string>;
   updateAlertPreferencesAction: (
     input: AlertPreferencesInput,
   ) => Promise<{ ok: boolean; error?: string }>;
@@ -115,6 +119,9 @@ type RadarClientProps = {
   ) => Promise<{ ok: boolean; error?: string }>;
   updateSupplierProfileAction: (
     input: SupplierProfileInput,
+  ) => Promise<{ ok: boolean; error?: string }>;
+  submitMatchFeedbackAction: (
+    input: MatchFeedbackInput,
   ) => Promise<{ ok: boolean; error?: string }>;
   signOutAction?: () => Promise<void>;
 };
@@ -510,9 +517,11 @@ export default function RadarClient({
   initialSaved,
   initialWorkflow,
   initialOpportunities: opportunities,
+  initialFeedback,
   updateAlertPreferencesAction,
   updateOpportunityStateAction,
   updateSupplierProfileAction,
+  submitMatchFeedbackAction,
   signOutAction,
 }: RadarClientProps) {
   const [query, setQuery] = useState('');
@@ -527,6 +536,7 @@ export default function RadarClient({
   const [supplierProfile, setSupplierProfile] = useState(
     initialSupplierProfile,
   );
+  const [feedback, setFeedback] = useState(initialFeedback);
   const [selectedId, setSelectedId] = useState(opportunities[0]?.id ?? '');
   const [saved, setSaved] = useState<string[]>(initialSaved);
   const [workflow, setWorkflow] =
@@ -1438,7 +1448,8 @@ export default function RadarClient({
                     “{selected.evidence}”
                   </blockquote>
                   <p className="mt-3 text-xs text-[#8fa8a0]">
-                    Trecho preservado pelo processamento do edital
+                    Trecho disponível nos dados oficiais; confira o documento
+                    completo
                   </p>
                   <div className="mt-5 grid grid-cols-2 gap-2">
                     {['Avaliando', 'Vai disputar', 'Não atende', 'Perdida'].map(
@@ -1464,6 +1475,24 @@ export default function RadarClient({
                   >
                     Abrir fonte oficial
                   </a>
+                  <MatchFeedbackPanel
+                    key={selected.matchId}
+                    matchId={selected.matchId}
+                    initialRating={
+                      (feedback[
+                        selected.matchId
+                      ] as MatchFeedbackInput['rating']) ?? null
+                    }
+                    submit={async (input) => {
+                      const result = await submitMatchFeedbackAction(input);
+                      if (result.ok)
+                        setFeedback((current) => ({
+                          ...current,
+                          [input.matchId]: input.rating,
+                        }));
+                      return result;
+                    }}
+                  />
                   <p className="mt-3 text-center text-[11px] leading-relaxed text-[#819b93]">
                     A fonte oficial prevalece. A análise não substitui leitura
                     jurídica.
@@ -1476,7 +1505,7 @@ export default function RadarClient({
       </div>
       <nav
         aria-label="Navegação móvel"
-        className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t bg-[#102923] px-2 py-2 text-white lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t bg-[#102923] px-2 py-2 text-white lg:hidden"
       >
         {navItems.map(([Icon, label]) => (
           <button
