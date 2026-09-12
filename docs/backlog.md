@@ -29,6 +29,7 @@
 - [x] incorporar OEM, marca, aplicação e evidência documental ao match resumido;
 - [x] coletar itens oficiais do PNCP e incorporar códigos, descrição, quantidade e unidade ao motor;
 - [x] criar motor de alertas de novo edital, mudança e prazo com opt-out (entrega por e-mail ainda pendente);
+- [ ] criar fila durável e idempotente para alertas; escolher provedor de e-mail e integrar entrega/descadastro antes de ativar envios;
 - [ ] validar com 5–10 distribuidores e medir precisão/ruído.
 
 ## P1 — operação do piloto
@@ -36,7 +37,7 @@
 - [x] completar tela de perfil logístico, marcas e exclusões (regiões, raio, linhas de catálogo e revisão de termos);
 - [ ] geocodificar origem/destino e usar o raio de entrega no score, com validação humana de rotas;
 - [ ] histórico de versões e diff de retificações;
-- [ ] conectar feedback de qualidade por match (schema e isolamento prontos);
+- [x] conectar feedback de qualidade por match com registro individual isolado por organização;
 - [ ] observabilidade de fontes, filas e custos;
 - [ ] política de retenção, backup/restauração e resposta a incidente;
 - [ ] E2E das jornadas de importação, filtro, decisão e isolamento entre organizações.

@@ -83,6 +83,10 @@ rebaixam oportunidades aparentemente compatíveis para `revisar`, sem descartar
 lotes mistos. O raio fica registrado, mas não entra no score até haver origem
 e destino geocodificados. Alterações passam a valer na próxima execução do
 gerador de matches. Os dados permanecem isolados por organização via RLS.
+Na ficha de cada oportunidade, a pessoa pode avaliar uma vez se o match
+acertou, foi parcial ou errou, com motivo opcional. Esse feedback fica
+registrado para a equipe revisar regras futuras; ele não altera automaticamente
+a classificação nem substitui a leitura do edital.
 
 ## Fonte complementar Compras.gov.br
 

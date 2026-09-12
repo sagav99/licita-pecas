@@ -7,8 +7,54 @@ import {
   validateSupplierProfile,
   type SupplierProfileInput,
 } from '@/domain/supplier-profile';
+import {
+  validateMatchFeedback,
+  type MatchFeedbackInput,
+} from '@/domain/match-feedback';
 
 export type { SupplierProfileInput } from '@/domain/supplier-profile';
+export type { MatchFeedbackInput } from '@/domain/match-feedback';
+
+export async function submitMatchFeedback(
+  input: MatchFeedbackInput,
+): Promise<{ ok: boolean; error?: string }> {
+  const feedback = validateMatchFeedback(input);
+  if (!feedback) return { ok: false, error: 'Feedback inválido.' };
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getClaims();
+  const userId = data?.claims?.sub;
+  if (!userId) return { ok: false, error: 'Sessão expirada.' };
+  const { data: membership } = await supabase
+    .from('organization_members')
+    .select('organization_id')
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (!membership) return { ok: false, error: 'Organização não encontrada.' };
+  const { data: match } = await supabase
+    .from('matches')
+    .select('id')
+    .eq('id', feedback.matchId)
+    .eq('organization_id', membership.organization_id)
+    .maybeSingle();
+  if (!match) return { ok: false, error: 'Match não encontrado.' };
+  const { error } = await supabase.from('match_feedback').insert({
+    organization_id: membership.organization_id,
+    match_id: feedback.matchId,
+    rating: feedback.rating,
+    reason: feedback.reason,
+    created_by: userId,
+  });
+  if (error)
+    return {
+      ok: false,
+      error:
+        error.code === '23505'
+          ? 'Você já avaliou este match.'
+          : 'Não foi possível salvar o feedback.',
+    };
+  revalidatePath('/');
+  return { ok: true };
+}
 
 export async function updateSupplierProfile(
   input: SupplierProfileInput,
