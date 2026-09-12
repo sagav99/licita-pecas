@@ -16,6 +16,7 @@
     "test": "node --experimental-strip-types --test tests/*.test.ts",
     "gemini:check": "node --env-file-if-exists=.env.local --experimental-strip-types scripts/check-gemini.ts",
     "pncp:collect": "node --env-file-if-exists=.env.local --experimental-strip-types scripts/collect-pncp.ts",
+    "compras-gov:collect": "node --env-file-if-exists=.env.local --experimental-strip-types scripts/collect-compras-gov.ts",
     "pncp:documents": "node --env-file-if-exists=.env.local --experimental-strip-types scripts/collect-pncp-documents.ts",
     "pncp:items": "node --env-file-if-exists=.env.local --experimental-strip-types scripts/collect-pncp-items.ts",
     "documents:process": "node --env-file-if-exists=.env.local --experimental-strip-types scripts/process-documents.ts",

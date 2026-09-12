@@ -33,6 +33,10 @@ jobs:
         id: collect
         continue-on-error: true
         run: npm run pncp:collect
+      - name: Complementar descoberta pelo Compras.gov.br
+        id: compras
+        continue-on-error: true
+        run: npm run compras-gov:collect
       - name: Versionar documentos oficiais do PNCP
         id: documents
         continue-on-error: true
@@ -52,12 +56,16 @@ jobs:
         if: always()
         env:
           COLLECTION_OUTCOME: ${{ steps.collect.outcome }}
+          COMPRAS_OUTCOME: ${{ steps.compras.outcome }}
           DOCUMENTS_OUTCOME: ${{ steps.documents.outcome }}
           ITEMS_OUTCOME: ${{ steps.items.outcome }}
           PROCESSING_OUTCOME: ${{ steps.processing.outcome }}
         run: |
           if [ "$COLLECTION_OUTCOME" != "success" ]; then
             echo "::warning::Coleta PNCP degradada; backoff registrado no Supabase."
+          fi
+          if [ "$COMPRAS_OUTCOME" != "success" ]; then
+            echo "::warning::Coleta Compras.gov.br degradada; as demais fontes foram preservadas."
           fi
           if [ "$DOCUMENTS_OUTCOME" != "success" ]; then
             echo "::warning::Ingestão de documentos degradada; matches existentes foram preservados."

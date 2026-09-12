@@ -6,8 +6,6 @@ import {
 import type { NormalizedProcurement } from './client.ts';
 import { nextSourceHealth } from '../sources/health.ts';
 
-const SOURCE_KEY = 'pncp';
-
 type StoredProcurement = {
   id: string;
   external_id: string;
@@ -31,9 +29,12 @@ export type PersistenceSummary = {
   changeEvents: number;
 };
 
-function snapshot(record: StoredProcurement): ProcurementSnapshot {
+function snapshot(
+  record: StoredProcurement,
+  sourceKey: string,
+): ProcurementSnapshot {
   return {
-    sourceId: SOURCE_KEY,
+    sourceId: sourceKey,
     externalId: record.external_id,
     agency: record.agency,
     municipality: record.municipality,
@@ -49,9 +50,12 @@ function snapshot(record: StoredProcurement): ProcurementSnapshot {
   };
 }
 
-function incomingSnapshot(record: NormalizedProcurement): ProcurementSnapshot {
+function incomingSnapshot(
+  record: NormalizedProcurement,
+  sourceKey: string,
+): ProcurementSnapshot {
   return {
-    sourceId: SOURCE_KEY,
+    sourceId: sourceKey,
     externalId: record.externalId,
     agency: record.agency,
     municipality: record.municipality,
@@ -67,9 +71,12 @@ function incomingSnapshot(record: NormalizedProcurement): ProcurementSnapshot {
   };
 }
 
-export function toProcurementRow(record: NormalizedProcurement) {
+export function toProcurementRow(
+  record: NormalizedProcurement,
+  sourceKey = 'pncp',
+) {
   return {
-    source_id: SOURCE_KEY,
+    source_id: sourceKey,
     external_id: record.externalId,
     agency: record.agency,
     municipality: record.municipality,
@@ -86,15 +93,24 @@ export function toProcurementRow(record: NormalizedProcurement) {
   };
 }
 
-export function createPncpRepository(supabase: SupabaseClient) {
+export function createProcurementRepository(
+  supabase: SupabaseClient,
+  options: {
+    sourceKey: string;
+    recordSourceKey?: string;
+    insertOnly?: boolean;
+  },
+) {
+  const { sourceKey } = options;
+  const recordSourceKey = options.recordSourceKey ?? sourceKey;
   return {
     async claim() {
       const { data, error } = await supabase.rpc('claim_source_collection', {
-        target_source_key: SOURCE_KEY,
+        target_source_key: sourceKey,
         lease_minutes: 10,
       });
       if (error)
-        throw new Error(`pncp_claim_failed:${error.code ?? 'unknown'}`);
+        throw new Error(`${sourceKey}_claim_failed:${error.code ?? 'unknown'}`);
       return data === true;
     },
 
@@ -111,9 +127,10 @@ export function createPncpRepository(supabase: SupabaseClient) {
           .select(
             'id,external_id,agency,municipality,state,modality,status,source_url,object,published_at,session_at,deadline_at,total_value',
           )
-          .eq('source_id', SOURCE_KEY)
+          .eq('source_id', recordSourceKey)
           .in('external_id', ids.slice(index, index + 100));
-        if (error) throw new Error(`pncp_existing_failed:${error.code}`);
+        if (error)
+          throw new Error(`${sourceKey}_existing_failed:${error.code}`);
         existing.push(...((data ?? []) as StoredProcurement[]));
       }
       const byExternalId = new Map(
@@ -127,10 +144,11 @@ export function createPncpRepository(supabase: SupabaseClient) {
           changed.push(record);
           continue;
         }
+        if (options.insertOnly) continue;
         const event = await buildProcurementChangeEvent(
           previous.id,
-          snapshot(previous),
-          incomingSnapshot(record),
+          snapshot(previous, recordSourceKey),
+          incomingSnapshot(record, recordSourceKey),
         );
         if (event) {
           changed.push(record);
@@ -138,12 +156,16 @@ export function createPncpRepository(supabase: SupabaseClient) {
         }
       }
       for (let index = 0; index < changed.length; index += 200) {
-        const { error } = await supabase
-          .from('procurements')
-          .upsert(changed.slice(index, index + 200).map(toProcurementRow), {
+        const { error } = await supabase.from('procurements').upsert(
+          changed
+            .slice(index, index + 200)
+            .map((record) => toProcurementRow(record, recordSourceKey)),
+          {
             onConflict: 'source_id,external_id',
-          });
-        if (error) throw new Error(`pncp_upsert_failed:${error.code}`);
+            ignoreDuplicates: options.insertOnly === true,
+          },
+        );
+        if (error) throw new Error(`${sourceKey}_upsert_failed:${error.code}`);
       }
       for (let index = 0; index < events.length; index += 200) {
         const { error } = await supabase.from('source_events').upsert(
@@ -157,7 +179,7 @@ export function createPncpRepository(supabase: SupabaseClient) {
           })),
           { onConflict: 'dedupe_key', ignoreDuplicates: true },
         );
-        if (error) throw new Error(`pncp_events_failed:${error.code}`);
+        if (error) throw new Error(`${sourceKey}_events_failed:${error.code}`);
       }
       const inserted = records.filter(
         (record) => !byExternalId.has(record.externalId),
@@ -182,17 +204,18 @@ export function createPncpRepository(supabase: SupabaseClient) {
           last_error_code: null,
           last_success_at: new Date().toISOString(),
         })
-        .eq('source_key', SOURCE_KEY);
-      if (error) throw new Error(`pncp_success_failed:${error.code}`);
+        .eq('source_key', sourceKey);
+      if (error) throw new Error(`${sourceKey}_success_failed:${error.code}`);
     },
 
     async fail(errorCode: string) {
       const { data, error } = await supabase
         .from('sources')
         .select('consecutive_failures')
-        .eq('source_key', SOURCE_KEY)
+        .eq('source_key', sourceKey)
         .single();
-      if (error) throw new Error(`pncp_failure_read_failed:${error.code}`);
+      if (error)
+        throw new Error(`${sourceKey}_failure_read_failed:${error.code}`);
       const failures = Number(data.consecutive_failures ?? 0) + 1;
       const health = nextSourceHealth(failures);
       const retryAfter = new Date(
@@ -207,11 +230,17 @@ export function createPncpRepository(supabase: SupabaseClient) {
           lease_until: null,
           last_error_code: errorCode.slice(0, 120),
         })
-        .eq('source_key', SOURCE_KEY);
+        .eq('source_key', sourceKey);
       if (updateError)
-        throw new Error(`pncp_failure_write_failed:${updateError.code}`);
+        throw new Error(
+          `${sourceKey}_failure_write_failed:${updateError.code}`,
+        );
     },
   };
+}
+
+export function createPncpRepository(supabase: SupabaseClient) {
+  return createProcurementRepository(supabase, { sourceKey: 'pncp' });
 }
 
 export type PncpRepository = ReturnType<typeof createPncpRepository>;

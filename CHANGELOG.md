@@ -15,6 +15,7 @@
 - Matching enriquecido por OEM, marca, aplicação e trecho verificado dos documentos processados.
 - Snapshots estruturados de itens do PNCP, com hash, inativação auditável e uso direto pelo matcher.
 - Estado comercial persistente e isolado por organização para oportunidades salvas e etapas de avaliação.
+- Descoberta complementar pelo Compras.gov.br, limitada, deduplicada com o PNCP e monitorada separadamente.
 
 - Chaves determinísticas para impedir duplicidade de editais, versões de documentos e alertas.
 - Contrato de ingestão para comparar hashes, emitir eventos de alteração e preservar versões.
