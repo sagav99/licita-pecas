@@ -159,3 +159,17 @@ void test('human opportunity state is isolated and cannot target an unrelated pr
   assert.match(sql, /updated_by = auth\.uid\(\)/);
   assert.match(sql, /check \(saved or workflow_status is not null\)/);
 });
+
+void test('configures Compras.gov.br as an independently recoverable source', async () => {
+  const sql = await readFile(
+    new URL(
+      '../supabase/migrations/0011_compras_gov_source.sql',
+      import.meta.url,
+    ),
+    'utf8',
+  );
+  assert.match(sql, /'compras-gov'/);
+  assert.match(sql, /https:\/\/dadosabertos\.compras\.gov\.br/);
+  assert.match(sql, /'hourly'/);
+  assert.match(sql, /on conflict \(type, base_url\) do update/);
+});

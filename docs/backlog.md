@@ -13,7 +13,8 @@
 - [x] escrever migration inicial Supabase com schema mínimo, constraints e RLS (aplicação em projeto ainda pendente);
 - [x] persistir catálogo validado no Postgres e arquivo original no Storage;
 - [x] integrar descoberta PNCP com paginação, deduplicação e execução recorrente horária;
-- [ ] configurar uma fonte complementar e política de falha/circuit breaker;
+- [x] configurar a API Compras.gov.br como complemento PNCP com lease e backoff independentes;
+- [ ] conectar fonte oficial externa ao ecossistema PNCP/Compras.gov.br para ampliar cobertura;
 - [x] definir chaves determinísticas de idempotência para editais, documentos e alertas;
 - [x] detectar versões de documentos e campos alterados sem apagar o histórico;
 - [x] buscar PDFs oficiais do PNCP em lote limitado, persistir hash/arquivo privado e emitir evento de versão;
