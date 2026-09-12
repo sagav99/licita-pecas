@@ -69,6 +69,10 @@ inativos para auditoria e códigos/descrições alimentam diretamente o match.
 salvo antes da estruturação por Gemini; por isso, falha ou limite de cota não
 obriga novo OCR. O workflow usa um documento por passagem e encerra novas
 tentativas depois de três falhas, preservando o PDF, o texto e o erro seguro.
+Para PDFs longos, o texto integral continua salvo, mas somente trechos
+priorizados são enviados ao modelo. A versão registra `structuring_scope` e a
+quantidade de caracteres analisados; matches apoiados nessa leitura parcial
+ficam em `revisar`, mesmo com código técnico forte.
 
 ## Fonte complementar Compras.gov.br
 

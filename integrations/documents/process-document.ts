@@ -1,7 +1,9 @@
 import { extractDocumentText, type DocumentReader } from './extractor.ts';
 import type { ExtractionAdapter } from '../gemini/adapter.ts';
-
-export const MAX_STRUCTURING_CHARACTERS = 300_000;
+import {
+  retainVerifiedDocumentEvidence,
+  selectStructuringText,
+} from './select-structuring-text.ts';
 
 export async function processProcurementDocument(input: {
   bytes: Uint8Array;
@@ -10,12 +12,12 @@ export async function processProcurementDocument(input: {
   extractor: ExtractionAdapter;
 }) {
   const read = await extractDocumentText(input.bytes, input.reader);
-  if (read.text.length > MAX_STRUCTURING_CHARACTERS) {
-    throw new Error('document_text_too_large');
-  }
-  const structured = await input.extractor.extract({
+  const selected = selectStructuringText(read.text);
+  const result = await input.extractor.extract({
     sourceUrl: input.sourceUrl,
-    text: read.text,
+    text: selected.text,
+    scope: selected.scope,
   });
-  return { read, structured };
+  const structured = retainVerifiedDocumentEvidence(result, read.text);
+  return { read, structured, scope: selected.scope };
 }

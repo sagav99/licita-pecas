@@ -88,6 +88,21 @@ void test('uses verified document OEM and preserves its official evidence', () =
   );
 });
 
+void test('downgrades a partial long-document result to human review', () => {
+  const result = matchLicitaPecas({
+    procurement: {
+      ...procurement,
+      extractionScope: 'selected_excerpts',
+    },
+    catalog,
+    regions: ['SP'],
+    now: new Date('2026-09-11T12:00:00Z'),
+  });
+  assert.equal(result.status, 'revisar');
+  assert.match(result.reasons.join(' '), /Documento longo/);
+  assert.match(result.missing.join(' '), /trechos não analisados/);
+});
+
 void test('uses a structured PNCP item as technical evidence', () => {
   const result = matchLicitaPecas({
     procurement: {

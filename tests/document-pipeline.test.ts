@@ -33,7 +33,7 @@ void test('passes extracted text and official URL to structured extraction', asy
     sourceUrl: 'https://example.com/edital.pdf',
     reader: {
       async readNative() {
-        return 'Texto nativo suficiente do edital para ser estruturado.';
+        return 'Texto nativo suficiente do edital. Aquisição de filtros automotivos.';
       },
       async readOcr() {
         throw new Error('ocr_should_not_run');
@@ -51,7 +51,8 @@ void test('passes extracted text and official URL to structured extraction', asy
   assert.deepEqual(calls, [
     {
       sourceUrl: 'https://example.com/edital.pdf',
-      text: 'Texto nativo suficiente do edital para ser estruturado.',
+      text: 'Texto nativo suficiente do edital. Aquisição de filtros automotivos.',
+      scope: 'full',
     },
   ]);
 });

@@ -54,11 +54,12 @@ export async function generateLicitaPecasMatches(
   const documents = [] as Array<{
     procurement_id: string;
     structured_data: unknown;
+    structuring_scope: 'full' | 'selected_excerpts' | null;
   }>;
   for (let index = 0; index < procurementIds.length; index += 200) {
     const { data, error } = await supabase
       .from('procurement_documents')
-      .select('procurement_id,structured_data,fetched_at')
+      .select('procurement_id,structured_data,structuring_scope,fetched_at')
       .in('procurement_id', procurementIds.slice(index, index + 200))
       .not('structured_data', 'is', null)
       .order('fetched_at', { ascending: false });
@@ -66,9 +67,12 @@ export async function generateLicitaPecasMatches(
     documents.push(...(data ?? []));
   }
   const extractionByProcurement = new Map<string, ProcurementExtraction>();
+  const partialDocuments = new Set<string>();
   for (const document of documents) {
     const extraction = storedExtraction(document.structured_data);
     if (!extraction) continue;
+    if (document.structuring_scope === 'selected_excerpts')
+      partialDocuments.add(document.procurement_id);
     const current = extractionByProcurement.get(document.procurement_id);
     extractionByProcurement.set(
       document.procurement_id,
@@ -173,6 +177,9 @@ export async function generateLicitaPecasMatches(
           deadlineAt: procurement.deadline_at,
           sourceUrl: procurement.source_url,
           extraction: extractionByProcurement.get(procurement.id) ?? null,
+          extractionScope: partialDocuments.has(procurement.id)
+            ? 'selected_excerpts'
+            : null,
           items: itemsByProcurement.get(procurement.id) ?? [],
         },
         catalog: normalizedCatalog,

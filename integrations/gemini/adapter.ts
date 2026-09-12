@@ -12,6 +12,7 @@ export type ExtractionAdapter = {
   extract: (input: {
     sourceUrl: string;
     text: string;
+    scope?: 'full' | 'selected_excerpts';
   }) => Promise<ProcurementExtraction>;
 };
 
@@ -22,7 +23,7 @@ export function createGeminiExtractionAdapter(
   return {
     async extract(input) {
       const raw = await client.generate({
-        prompt: buildExtractionPrompt(input.sourceUrl),
+        prompt: buildExtractionPrompt(input.sourceUrl, input.scope),
         text: input.text,
       });
       let parsed: ProcurementExtraction;

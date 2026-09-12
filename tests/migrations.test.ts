@@ -173,3 +173,16 @@ void test('configures Compras.gov.br as an independently recoverable source', as
   assert.match(sql, /'hourly'/);
   assert.match(sql, /on conflict \(type, base_url\) do update/);
 });
+
+void test('records when a long document was only partially structured', async () => {
+  const sql = await readFile(
+    new URL(
+      '../supabase/migrations/0012_document_structuring_scope.sql',
+      import.meta.url,
+    ),
+    'utf8',
+  );
+  assert.match(sql, /structuring_scope text/);
+  assert.match(sql, /'full', 'selected_excerpts'/);
+  assert.match(sql, /structuring_input_characters integer/);
+});
