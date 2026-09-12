@@ -74,6 +74,16 @@ priorizados são enviados ao modelo. A versão registra `structuring_scope` e a
 quantidade de caracteres analisados; matches apoiados nessa leitura parcial
 ficam em `revisar`, mesmo com código técnico forte.
 
+## Perfil de fornecimento
+
+Na área autenticada, **Meu perfil** salva UFs atendidas, raio informado,
+marcas, categorias e termos que exigem revisão. UFs afetam a localidade do
+match; marcas e categorias restringem os SKUs elegíveis; termos de exclusão
+rebaixam oportunidades aparentemente compatíveis para `revisar`, sem descartar
+lotes mistos. O raio fica registrado, mas não entra no score até haver origem
+e destino geocodificados. Alterações passam a valer na próxima execução do
+gerador de matches. Os dados permanecem isolados por organização via RLS.
+
 ## Fonte complementar Compras.gov.br
 
 `npm run compras-gov:collect` consulta o módulo de contratações da API oficial

@@ -6,10 +6,12 @@ import RadarClient, {
 } from '@/app/radar-client';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { storedProfileTerms } from '@/domain/supplier-profile';
 import {
   signOut,
   updateAlertPreferences,
   updateOpportunityState,
+  updateSupplierProfile,
 } from './actions';
 
 export default async function Home() {
@@ -34,6 +36,7 @@ export default async function Home() {
     { data: alertActivity },
     { data: opportunityStates },
     { data: matches },
+    { data: supplierProfile },
   ] = await Promise.all([
     supabase
       .from('organizations')
@@ -85,6 +88,11 @@ export default async function Home() {
       .eq('organization_id', membership.organization_id)
       .order('score', { ascending: false, nullsFirst: false })
       .limit(100),
+    supabase
+      .from('supplier_profiles')
+      .select('regions,delivery_radius_km,catalog_rules,exclusions')
+      .eq('organization_id', membership.organization_id)
+      .maybeSingle(),
   ]);
   const email =
     typeof data.claims.email === 'string' ? data.claims.email : 'Usuário';
@@ -230,8 +238,19 @@ export default async function Home() {
       }}
       initialAlertPreferences={initialAlertPreferences}
       initialAlertActivity={initialAlertActivity}
+      initialSupplierProfile={{
+        regions: storedProfileTerms(supplierProfile?.regions, 27),
+        deliveryRadiusKm: supplierProfile?.delivery_radius_km ?? null,
+        brands: storedProfileTerms(supplierProfile?.catalog_rules?.brands, 30),
+        categories: storedProfileTerms(
+          supplierProfile?.catalog_rules?.categories,
+          30,
+        ),
+        exclusions: storedProfileTerms(supplierProfile?.exclusions, 20),
+      }}
       updateAlertPreferencesAction={updateAlertPreferences}
       updateOpportunityStateAction={updateOpportunityState}
+      updateSupplierProfileAction={updateSupplierProfile}
       initialSaved={initialSaved}
       initialWorkflow={initialWorkflow}
       initialOpportunities={opportunities}

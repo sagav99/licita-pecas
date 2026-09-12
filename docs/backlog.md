@@ -33,7 +33,8 @@
 
 ## P1 — operação do piloto
 
-- [ ] completar tela de perfil logístico, marcas e exclusões (organização e schema conectados);
+- [x] completar tela de perfil logístico, marcas e exclusões (regiões, raio, linhas de catálogo e revisão de termos);
+- [ ] geocodificar origem/destino e usar o raio de entrega no score, com validação humana de rotas;
 - [ ] histórico de versões e diff de retificações;
 - [ ] conectar feedback de qualidade por match (schema e isolamento prontos);
 - [ ] observabilidade de fontes, filas e custos;
